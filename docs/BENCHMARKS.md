@@ -131,3 +131,40 @@ taken, because the spike had already run long:
 2. **There are ~6 seconds of unused headroom per screenshot.** The prompt gives no tie-breaking
    guidance between `document` and the more specific categories, which is exactly where the
    misses cluster (`other -> document` 6 times, `receipt -> document` 3 times).
+
+---
+
+## Indexing pipeline — 24 October 2026
+
+A full pass over the 28 fixtures with `qwen3-vl:2b-instruct` at 768px, on the development Mac,
+against a temporary copy of the folder (never a real screenshot folder).
+
+| | |
+| --- | --- |
+| Files on disk | 28 |
+| Rows created by the scan | **27** — the byte-identical copy collapsed at the content hash |
+| Sent to the model | **26** — the half-size copy was caught by the perceptual hash |
+| Duplicates found | 1 near, 1 exact |
+| Skipped | 0 |
+| Scan (walk + SHA-256 of 28 files) | 0.02 s |
+| Analysis | 101.8 s total, **3.92 s per image** |
+| Files changed on disk | **0** |
+
+The model is asked exactly once per unique image. Both duplicate mechanisms fire where they
+should: identical bytes never reach the image loader at all, and a resave at a different size
+is settled by the difference hash without the model.
+
+All four images imitating sensitive content were flagged, and all four stored `null` for their
+extracted text, which is the privacy rule holding in a real run rather than only in a unit test.
+
+### Duplicate threshold
+
+`DUPLICATE_DISTANCE = 4`, calibrated rather than guessed:
+
+| Measurement | Distance |
+| --- | --- |
+| Exact copy, and a half-size resave | **0** |
+| Closest non-duplicate pair, fixtures | 7 |
+| Closest non-duplicate pair, real captures (two dashboard cards 5 s apart, same layout) | 8 |
+
+4 sits in the gap with margin on both sides.

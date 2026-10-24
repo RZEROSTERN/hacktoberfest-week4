@@ -9,11 +9,16 @@ from fastapi.responses import JSONResponse
 from app.config import Settings
 from app.db import make_engine
 from app.errors import ApiError
+from app.indexing import Indexer
 from app.routes import router
-from app.settings_store import VISION_MODEL, seed_setting
+from app.routes_folders import router as folders_router
+from app.routes_runs import router as runs_router
+from app.runs import RunManager
+from app.settings_store import VISION_MODEL, seed_setting, vision_model_getter
+from app.vision import OllamaVision, Vision
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, vision: Vision | None = None) -> FastAPI:
     """The engines can be swapped in tests; the defaults are the real ones."""
     settings = settings or Settings()
     settings.data_dir.mkdir(parents=True, exist_ok=True)
@@ -25,6 +30,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # One worker for everything heavy. The resource budget allows one image in flight at a time,
     # so scanning, analysis and organizing never overlap.
     executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="job")
+
+    indexer = Indexer(
+        engine,
+        vision
+        or OllamaVision(
+            settings.ollama_url, vision_model_getter(engine), prompts_dir=settings.prompts_dir
+        ),
+        settings.max_image_px,
+    )
+    runs = RunManager(engine, indexer, executor)
+    runs.recover()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -46,6 +62,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.engine = engine
     app.state.executor = executor
+    app.state.runs = runs
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -53,6 +70,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(router)
+    app.include_router(folders_router)
+    app.include_router(runs_router)
 
     @app.get("/health")
     def health() -> dict[str, str]:

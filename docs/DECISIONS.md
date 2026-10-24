@@ -239,3 +239,51 @@ where flagging it is arguably correct and the label is the weaker claim.
 is how a benchmark becomes a story about itself. The labels stand as they were written, the
 caveat is published next to the number, and any re-labelling happens as its own change with its
 own reasoning.
+
+---
+
+## Step 4 — Indexing pipeline
+
+### The duplicate threshold was measured, not chosen
+
+`DUPLICATE_DISTANCE = 4` over a 64-bit difference hash.
+
+**Why that number:** genuine duplicates, including a half-size resave, measure 0. The closest
+pair that is *not* a duplicate measures 7 across the fixtures and 8 across the real captures,
+where the hardest case is two dashboard cards photographed five seconds apart with the same
+layout and different numbers. 4 is the midpoint of an empty gap, so the threshold can drift in
+either direction without changing any verdict. The measurements are in docs/BENCHMARKS.md.
+
+### Duplicates are resolved oldest-first
+
+Pending screenshots are analysed in capture-time order, so the earliest copy stays the original
+and a later copy is the one sent to Review.
+
+**Why:** the first implementation processed in path order, which made "which one is the
+original" depend on filenames. A test caught it. The screenshot the user actually took should
+be the one that keeps its place.
+
+### Three gates before the model, in increasing cost
+
+A file is dropped at the cheapest gate that can decide it: the folder walk skips Slothshot's own
+output and anything that is not a readable image; the content hash settles exact duplicates
+without opening the image; the perceptual hash settles near duplicates without the model.
+
+**Why:** the model is the only expensive step, at about 4 seconds an image. In the end-to-end
+run, 28 files on disk became 27 rows and 26 model calls.
+
+### Scanning never re-analyses a file the user moved
+
+The unique key is the content hash, and a rescan updates `current_path` in place.
+
+**Why:** people rename and move screenshots, and Slothshot itself moves them. Keying on path
+would re-analyse the same picture every time it moved, which is both slow and wrong. A test
+renames a file between scans and asserts no new work and no second row, with `original_path`
+still pointing where undo needs it.
+
+### The api never logs what it sees
+
+Progress is reported as counters on the `Run` row, not as log lines naming files.
+
+**Why:** the product promise is that screenshot contents never leave the machine, and a log
+file is a place they could leak to. Counting is enough to drive a progress bar.
