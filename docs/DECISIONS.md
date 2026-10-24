@@ -184,3 +184,58 @@ committed once before being caught. The pattern is now `dist`, without the slash
 
 It already exists, is gitignored, and already holds the machine specs. It is the maintainer's
 own file and is left alone; the local model tags are appended once the spike has chosen them.
+
+---
+
+## Step 3 — Model spike
+
+### No model met all four targets, so the app ships a list instead of a pick
+
+Measured on the development Mac over 28 balanced fixtures: exactly one configuration fits the
+memory budget (`qwen3-vl:2b-instruct` at 768px, 2.86 GB) and exactly one model meets the
+accuracy gate (`gemma4:e4b`, 89%). None does both.
+
+**Decision:** `qwen3-vl:2b-instruct` is the default and `gemma4:e4b` is offered in the wizard
+with its memory cost stated.
+
+**Why:** bending the memory budget would break the claim the product is built on, and bending
+the accuracy target silently would hide a real limitation. A recommended list is what the
+first-launch wizard was already specified to show — models with size, RAM needed and license —
+so the honest answer fits the design that already existed. The default keeps the resource
+promise; the accuracy is available to anyone who chooses to pay for it.
+
+### `gemma4:e2b` is excluded outright
+
+It was worst on every axis and it missed a sensitive screenshot.
+
+**Why:** "no sensitive screenshot missed" is a safety property, not a quality score. A model
+that fails it is not a candidate at any image size, so it is absent from the catalog rather
+than listed with a warning. A test asserts it is not offered.
+
+### 768px, not 1024px
+
+**Why:** both models scored identically at the two sizes while 768 cost less memory and was no
+slower. Nothing was bought by sending larger images.
+
+### The first measurement was wrong, and the fix is in the script
+
+Peak memory read lower at 1024px than at 768px, which is impossible. With `keep_alive` at 30s
+each model's first run overlapped the previous model unloading, so whichever ran first absorbed
+the other's memory.
+
+**Why it matters beyond this run:** the numbers are meant to be reproduced on the Mint and
+Windows machines. `spike/benchmark.py` now sends the documented `keep_alive: 0` unload and polls
+`/api/ps` until the engine is idle before each run, so the same mistake cannot be repeated by
+whoever runs it next.
+
+### The accuracy gate partly measured the labels
+
+Four of the default model's seven misses are fixtures filed under `other` because the
+ten-category list has no bucket for a password manager or a checkout form; the model answered
+`document`. Both of `gemma4:e4b`'s "false alarms" are a receipt showing `VISA ending 0000`,
+where flagging it is arguably correct and the label is the weaker claim.
+
+**Why this is recorded rather than quietly corrected:** re-labelling after seeing the results
+is how a benchmark becomes a story about itself. The labels stand as they were written, the
+caveat is published next to the number, and any re-labelling happens as its own change with its
+own reasoning.

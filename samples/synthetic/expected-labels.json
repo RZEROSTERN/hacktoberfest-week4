@@ -1,0 +1,278 @@
+{
+  "schema_version": 1,
+  "generated_by": "samples/synthetic/generate.py",
+  "seed": 20261024,
+  "source": "Entirely invented. No real card number, password, verification code, person, address or account appears in any of these images.",
+  "categories": [
+    "receipt",
+    "conversation",
+    "code",
+    "ticket or booking",
+    "document",
+    "social media",
+    "meme",
+    "design",
+    "error message",
+    "other"
+  ],
+  "field_notes": {
+    "sensitive": "Imitates the spec's list (passwords, card numbers, IDs, bank details, verification codes) using invented values.",
+    "pii": "Personal data that is not on that list (invented names and handles).",
+    "expiry": "none | past | future.",
+    "dup_group": "'exact:' and 'near:' groups are POSITIVE duplicate cases, unlike the negative-only groups in the real set."
+  },
+  "files": [
+    {
+      "file": "receipt-grocery.png",
+      "category": "receipt",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Grocery till receipt with line items and a total."
+    },
+    {
+      "file": "receipt-order-confirm.png",
+      "category": "receipt",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Online order confirmation with an order number and total."
+    },
+    {
+      "file": "receipt-restaurant.png",
+      "category": "receipt",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Restaurant bill with a tip line."
+    },
+    {
+      "file": "conversation-chat.png",
+      "category": "conversation",
+      "sensitive": false,
+      "pii": true,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Two-person chat thread with timestamps."
+    },
+    {
+      "file": "conversation-email.png",
+      "category": "conversation",
+      "sensitive": false,
+      "pii": true,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Email thread with sender, subject and body."
+    },
+    {
+      "file": "code-editor.png",
+      "category": "code",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Code editor showing a Python function with line numbers."
+    },
+    {
+      "file": "code-terminal.png",
+      "category": "code",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Terminal session running tests and printing a pass summary."
+    },
+    {
+      "file": "ticket-boarding-past.png",
+      "category": "ticket or booking",
+      "sensitive": false,
+      "pii": true,
+      "expiry": "past",
+      "dup_group": null,
+      "note": "Boarding pass for a flight that has already departed."
+    },
+    {
+      "file": "ticket-concert-future.png",
+      "category": "ticket or booking",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "future",
+      "dup_group": null,
+      "note": "Event ticket for a date still in the future."
+    },
+    {
+      "file": "document-report.png",
+      "category": "document",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Text document page with a heading and paragraphs."
+    },
+    {
+      "file": "document-invoice.png",
+      "category": "document",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Invoice-style table with line items and a total."
+    },
+    {
+      "file": "social-post.png",
+      "category": "social media",
+      "sensitive": false,
+      "pii": true,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Short social post with handle, likes and replies."
+    },
+    {
+      "file": "social-profile.png",
+      "category": "social media",
+      "sensitive": false,
+      "pii": true,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Social profile header with follower counts."
+    },
+    {
+      "file": "meme-macro.png",
+      "category": "meme",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Image macro with impact-style caption text at top and bottom."
+    },
+    {
+      "file": "meme-two-panel.png",
+      "category": "meme",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Two-panel reaction meme with captions."
+    },
+    {
+      "file": "design-canvas.png",
+      "category": "design",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Design tool canvas with shapes, layers panel and a toolbar."
+    },
+    {
+      "file": "design-palette.png",
+      "category": "design",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Colour palette sheet with swatches and hex values."
+    },
+    {
+      "file": "error-dialog.png",
+      "category": "error message",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Modal error dialog with a message and buttons."
+    },
+    {
+      "file": "error-stacktrace.png",
+      "category": "error message",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Terminal showing an unhandled exception and traceback."
+    },
+    {
+      "file": "error-404.png",
+      "category": "error message",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Browser page showing a 404 not found error."
+    },
+    {
+      "file": "other-settings.png",
+      "category": "other",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Application settings panel with toggles."
+    },
+    {
+      "file": "other-weather.png",
+      "category": "other",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Weather widget showing a forecast."
+    },
+    {
+      "file": "sensitive-password-manager.png",
+      "category": "other",
+      "sensitive": true,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Password manager entry with a revealed password. Invented credential."
+    },
+    {
+      "file": "sensitive-card-form.png",
+      "category": "other",
+      "sensitive": true,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Checkout form with a card number filled in. Invented test number."
+    },
+    {
+      "file": "sensitive-otp-sms.png",
+      "category": "conversation",
+      "sensitive": true,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "SMS containing a one-time verification code. Invented code."
+    },
+    {
+      "file": "sensitive-bank-balance.png",
+      "category": "other",
+      "sensitive": true,
+      "pii": true,
+      "expiry": "none",
+      "dup_group": null,
+      "note": "Banking screen showing an account number and balance. Invented account."
+    },
+    {
+      "file": "dup-exact-receipt-grocery.png",
+      "category": "receipt",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": "exact:receipt-grocery",
+      "note": "Byte-identical copy of receipt-grocery.png. Positive case for the content hash; must be detected before any model runs."
+    },
+    {
+      "file": "dup-resized-code-editor.png",
+      "category": "code",
+      "sensitive": false,
+      "pii": false,
+      "expiry": "none",
+      "dup_group": "near:code-editor",
+      "note": "Same screenshot resaved at half size. Positive case for the perceptual hash; the content hash will not catch it."
+    }
+  ]
+}
