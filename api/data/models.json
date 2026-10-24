@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "updated": "2026-10-24",
+  "source": "docs/BENCHMARKS.md — measured on a MacBook Pro M2 Pro, 16 GB, Ollama 0.35.1",
+  "vision": [
+    {
+      "model": "qwen3-vl:2b-instruct",
+      "title": "Qwen3-VL 2B Instruct",
+      "recommended": true,
+      "size_bytes": 1900000000,
+      "size_exact": false,
+      "ram_gb": 8,
+      "max_image_px": 768,
+      "license": "Apache 2.0",
+      "note": "The default. Stays inside the app's resource budget at about 2.9 GB, roughly 3.6 seconds a screenshot, and flagged every sensitive screenshot in the test set."
+    },
+    {
+      "model": "gemma4:e4b",
+      "title": "Gemma 4 E4B",
+      "recommended": false,
+      "size_bytes": 6600000000,
+      "size_exact": false,
+      "ram_gb": 16,
+      "max_image_px": 768,
+      "license": "Apache 2.0",
+      "note": "Sorts more accurately (89% against 75%) and also flagged every sensitive screenshot, but needs about 4.8 GB of memory, above what this app budgets for itself. Worth choosing on a machine with memory to spare."
+    }
+  ]
+}

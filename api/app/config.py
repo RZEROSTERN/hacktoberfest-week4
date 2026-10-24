@@ -25,9 +25,11 @@ class Settings(BaseSettings):
     # (development); the setup wizard writes it in the packaged app.
     vision_model: str | None = None
 
-    # Longest side, in pixels, that an image is downscaled to before inference. The spike tunes
-    # this; the resource budget depends on it.
-    max_image_px: int = Field(default=1024, ge=256, le=4096)
+    # Longest side, in pixels, that an image is downscaled to before inference.
+    # 768, from the spike: both candidate models scored identically at 768 and 1024, and 768
+    # costs noticeably less memory, which is the budget that actually binds.
+    # See docs/BENCHMARKS.md.
+    max_image_px: int = Field(default=768, ge=256, le=4096)
 
     # Folder with the versioned prompt files; defaults to the `prompts` folder next to the app
     # package (which is also where the packaged binary unpacks it).
