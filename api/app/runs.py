@@ -1,0 +1,92 @@
+"""Starting and tracking a run. One run at a time, on one worker thread."""
+
+import threading
+from concurrent.futures import Executor
+from datetime import UTC, datetime
+from pathlib import Path
+
+from sqlalchemy.engine import Engine
+from sqlmodel import Session, col, select
+
+from app.errors import ApiError, Cancelled
+from app.indexing import Indexer
+from app.models import Run, RunStatus, Screenshot, ShotStatus, WatchedFolder
+
+ACTIVE = (RunStatus.SCANNING, RunStatus.ANALYZING, RunStatus.ORGANIZING)
+
+
+class RunManager:
+    def __init__(self, engine: Engine, indexer: Indexer, executor: Executor) -> None:
+        self._engine = engine
+        self._indexer = indexer
+        self._executor = executor
+        self._lock = threading.Lock()
+
+    def recover(self) -> None:
+        """A run that was going when the app stopped cannot be resumed from a half state."""
+        with Session(self._engine) as session:
+            for run in session.exec(select(Run).where(col(Run.status).in_(ACTIVE))).all():
+                run.status = RunStatus.FAILED
+                run.finished_at = datetime.now(UTC)
+                session.add(run)
+            # Anything left mid-analysis goes back in the queue; the cache means the work
+            # already done is not repeated.
+            session.commit()
+
+    def folders(self) -> list[Path]:
+        with Session(self._engine) as session:
+            rows = session.exec(
+                select(WatchedFolder).where(WatchedFolder.enabled == True)  # noqa: E712
+            ).all()
+            return [Path(r.path) for r in rows]
+
+    def current(self) -> Run | None:
+        with Session(self._engine) as session:
+            return session.exec(select(Run).where(col(Run.status).in_(ACTIVE))).first()
+
+    def start(self, manual: bool = True) -> Run:
+        folders = self.folders()
+        if not folders:
+            raise ApiError(400, "folder_not_found")
+
+        with self._lock:
+            if self.current() is not None:
+                raise ApiError(409, "run_in_progress")
+            with Session(self._engine) as session:
+                run = Run(manual=manual, status=RunStatus.SCANNING)
+                session.add(run)
+                session.commit()
+                session.refresh(run)
+                run_id = run.id
+                created = run
+        assert run_id is not None
+        self._executor.submit(self._execute, run_id, folders)
+        return created
+
+    def _execute(self, run_id: int, folders: list[Path]) -> None:
+        try:
+            self._indexer.scan(run_id, folders)
+            self._indexer.analyze_pending(run_id)
+        except Cancelled:
+            pass  # the indexer already recorded the paused state
+        except Exception:  # noqa: BLE001 - a run must never take the api down with it
+            with Session(self._engine) as session:
+                run = session.get(Run, run_id)
+                if run is not None:
+                    run.status = RunStatus.FAILED
+                    run.finished_at = datetime.now(UTC)
+                    session.add(run)
+                    session.commit()
+
+    def preview(self, run_id: int) -> list[Screenshot]:
+        """What the run would do, for the approval screen."""
+        with Session(self._engine) as session:
+            if session.get(Run, run_id) is None:
+                raise ApiError(404, "run_not_found")
+            return list(
+                session.exec(
+                    select(Screenshot)
+                    .where(Screenshot.status == ShotStatus.ANALYZED)
+                    .order_by(col(Screenshot.captured_at))
+                ).all()
+            )
