@@ -153,3 +153,34 @@ start.
 Integration tests are excluded in CI (`-m "not integration"`): they need a real
 Ollama with a vision model, which no runner has and which would amount to cloud
 inference.
+
+---
+
+## Step 2 — Project memory
+
+### CLAUDE.md stays short; the detail lives in path-scoped rules
+
+`CLAUDE.md` is ~60 lines of what cannot be read off the code: layout, commands, the GitFlow
+sequence, the non-negotiables and the gotchas. Everything specific to one part goes in
+`.claude/rules/{api,web,desktop,ci}.md`, each scoped with a `paths:` header.
+
+**Why:** a long root file is read on every task whether or not it is relevant, and the parts
+that matter get diluted. Scoped rules load when the files they govern are being worked on.
+The rule is to record only what the code cannot say for itself — "never delete a user's file"
+is not inferable from a codebase that currently has no delete call in it, so it is written
+down.
+
+### Two gotchas earned a place by costing time
+
+macOS writes **U+202F**, a narrow no-break space, before `a.m.`/`p.m.` in screenshot
+filenames. It is not a space, shell globs treat it as part of the name, and the renamer has to
+round-trip it rather than normalise it.
+
+`nuxt generate` leaves `web/dist` as an absolute-path symlink to `.output/public`. A `dist/`
+pattern in `.gitignore` matches directories only, and git sees a symlink, so the link was
+committed once before being caught. The pattern is now `dist`, without the slash.
+
+### CLAUDE.local.md is not generated
+
+It already exists, is gitignored, and already holds the machine specs. It is the maintainer's
+own file and is left alone; the local model tags are appended once the spike has chosen them.
