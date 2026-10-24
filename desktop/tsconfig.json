@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    // node16 rather than the deprecated node10 resolution. desktop/package.json has no
+    // "type": "module", so these files stay CommonJS, which is what Electron's main process wants.
+    "module": "node16",
+    "moduleResolution": "node16",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
+}

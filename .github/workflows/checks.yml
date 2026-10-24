@@ -1,0 +1,129 @@
+# Lint, typecheck and tests for all three parts, on every pull request. This is the gate that
+# runs on a feature PR into develop; build.yml does the installers and only runs for release
+# PRs into master or on request.
+name: Checks
+
+on:
+  pull_request:
+    branches: [master, develop]
+  push:
+    branches: [master, develop]
+
+# Least privilege: these jobs only read the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: api (ruff, mypy, pytest)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python (uv)
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: api/uv.lock
+
+      - name: Install
+        working-directory: api
+        run: uv sync --frozen
+
+      - name: Lint
+        working-directory: api
+        run: uv run ruff check .
+
+      - name: Format
+        working-directory: api
+        run: uv run ruff format --check .
+
+      - name: Typecheck
+        working-directory: api
+        run: uv run mypy .
+
+      - name: Tests
+        working-directory: api
+        # -m "not integration": the integration tests need a real Ollama with a vision model,
+        # which no runner has and which would mean cloud inference in CI.
+        run: uv run pytest -q -m "not integration"
+
+  web:
+    name: web (eslint, vue-tsc, vitest)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.21.0 # exact, so npm and the lockfiles behave the same on every run
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        working-directory: web
+        run: npm ci
+
+      - name: Lint
+        working-directory: web
+        run: npm run lint
+
+      - name: Typecheck
+        working-directory: web
+        run: npm run typecheck
+
+      - name: Tests
+        working-directory: web
+        run: npm test
+
+      - name: Generate the SPA
+        working-directory: web
+        run: npm run generate
+
+  desktop:
+    name: desktop (eslint, tsc, vitest)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.21.0
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Install
+        working-directory: desktop
+        # Electron's own binary is not needed to lint, typecheck or run these tests.
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+        run: npm ci
+
+      - name: Lint
+        working-directory: desktop
+        run: npm run lint
+
+      - name: Typecheck
+        working-directory: desktop
+        run: npm run typecheck
+
+      - name: Tests
+        working-directory: desktop
+        run: npm test
+
+      - name: Build
+        working-directory: desktop
+        run: npm run build

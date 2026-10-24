@@ -1,0 +1,40 @@
+[project]
+name = "slothshot-api"
+version = "0.1.0"
+description = "Local screenshot organizer API. Runs entirely on the user's machine."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.143.0",
+    "httpx>=0.28.1",
+    "pillow>=11.0.0",
+    "psutil>=7.2.2",
+    "pydantic>=2.14.1",
+    "pydantic-settings>=2.15.0",
+    "sqlmodel>=0.0.48",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.0",
+    "pyinstaller>=6.22.3",
+    "pytest>=9.1.1",
+    "ruff>=0.17.0",
+    "types-psutil>=7.2.2.20260906",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = ["integration: runs against a real Ollama with a vision model installed"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
