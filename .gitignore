@@ -1,0 +1,11 @@
+# Local-only instructions (machine specs, local model tags)
+CLAUDE.local.md
+
+# Real screenshots used for the model spike: the maintainer's own captures,
+# containing personal data including a third party's email address. They never
+# enter version control. Only the generated synthetic fixture set is committed.
+samples/*
+!samples/synthetic/
+!samples/README.md
+
+.DS_Store
