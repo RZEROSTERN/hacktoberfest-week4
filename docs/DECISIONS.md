@@ -1,0 +1,155 @@
+# Decisions
+
+Every technical decision and why it was taken. Newest step last.
+
+---
+
+## Step 0 — Repository
+
+### GitFlow with `master`, and no branch named `main`
+
+`master` is production, `develop` is integration, every build step is one
+`feature/*` branch with one pull request based on `develop`. No stacked
+branches.
+
+**Why:** the history has to read as a sequence of reviewable steps, and the
+release workflow keys off `release/*` → `master`. GitHub creates empty
+repositories expecting `main`; pushing `master` first makes it the default
+branch, so `main` is never created at all.
+
+The bootstrap commit is on `master` by necessity — a repository cannot have a
+`develop` until something exists to branch from. Every change after it goes
+through a pull request.
+
+---
+
+## Step 1 — Scaffold
+
+### Reuse PostCall rather than start over
+
+`api/`, `web/` and `desktop/` are adapted from the previous project rather than
+written fresh: the Settings/env contract, the SQLite engine with WAL, the
+`ApiError` code/params shape, the env allow-list, the navigation and permission
+allow-lists, the sandboxed preload, and process-tree cleanup.
+
+**Why:** time is the binding constraint. These pieces were already debugged on
+three platforms. Code is copied, not depended on, so Slothshot stays a
+standalone repository.
+
+Dropped: transcription, proposal drafting, PDF export, the audio decoder,
+`whisper-cli` and the bundled FFmpeg, with their layout and installer entries.
+
+### Real screenshots stay out of version control
+
+`samples/*` is ignored with negations for `samples/synthetic/` and
+`samples/README.md`, rather than ignoring `samples/`.
+
+**Why:** git cannot re-include a file underneath an excluded directory, so a
+plain `samples/` would have made a committed fixture set impossible.
+
+The maintainer's own captures hold personal data — one is a payment-processor
+console showing a third party's customer email beside card BIN and last-four
+fields. An app whose entire premise is that screenshots never leave the machine
+cannot ship those in a public repository. The labelled real set stays local and
+drives the spike; a generated synthetic set is committed and drives CI.
+
+### `sensitive` and `pii` are separate fields
+
+The expected-labels file records the specification's `sensitive` list
+(passwords, card numbers, IDs, bank details, verification codes) apart from a
+broader `pii` flag (names, emails, handles, locations).
+
+**Why:** in the real sample set 2 of 24 images are sensitive but 8 carry
+personal data. Collapsing the two would make the sensitive-flag metric measure
+something other than what the model is asked for, and the question of whether an
+email address should count can then be settled later without relabelling
+anything.
+
+### Difference hashing on Pillow alone, not `imagehash`
+
+Near-duplicate detection uses a 64-bit dHash implemented in `api/app/images.py`.
+
+**Why:** `imagehash` would pull numpy and scipy into the PyInstaller bundle for
+one function, against a 1.5 GB installer ceiling in step 9. dHash is about ten
+lines, needs no dependency beyond Pillow, and the tests show it survives a 2×
+resize (hamming ≤ 6) while separating different images (> 6).
+
+### The perceptual hash is taken before downscaling
+
+`load_for_analysis` hashes the image at its original size, then downscales for
+inference.
+
+**Why:** otherwise retuning `max_image_px` during the spike would silently
+invalidate every hash already stored, and duplicate detection would quietly
+change meaning between runs. A test pins this.
+
+### Screenshots are identified by content, not by path
+
+The unique key is the SHA-256 of the file's bytes; the path is data that
+changes.
+
+**Why:** the app renames and moves files, and so does the user. Keying on
+content means a file moved outside the app is still recognised and never
+analysed twice, which is also what makes the cache honest.
+
+### The journal is written before the operation, not after
+
+A `Change` row is inserted before each file operation and marked `applied`
+afterwards.
+
+**Why:** undo has to be able to tell "this move never happened" from "this move
+happened and was not recorded". Writing afterwards loses that distinction
+exactly when it matters, after a crash mid-run. Undo can verify an unapplied row
+against the filesystem instead of guessing.
+
+### Background priority is below-normal, not idle
+
+`desktop/src/priority.ts` uses `os.setPriority`, the one call that works on all
+three platforms, and asks for `PRIORITY_BELOW_NORMAL`.
+
+**Why:** Node maps the bottom of its range to Windows' `IDLE_PRIORITY_CLASS`,
+where a run on a busy machine can be starved indefinitely rather than merely
+yielding. Lowering priority needs no privileges; a failure leaves the app at
+normal priority, which is a slower neighbour, not a broken one.
+
+### Ollama's limits come from its own help output
+
+`OLLAMA_MAX_LOADED_MODELS=1`, `OLLAMA_NUM_PARALLEL=1` and
+`OLLAMA_KEEP_ALIVE=30s`, read from `ollama serve --help` on 0.35.1.
+
+**Why:** the rule against inventing flags. All three names were confirmed
+against the installed binary rather than recalled. The short keep-alive is what
+lets the model carry between screenshots in one run without holding memory
+afterwards.
+
+### English only: no vue-i18n
+
+PostCall's translation layer and its seven locale files were not carried over.
+
+**Why:** nothing in the specification asks for more than English, and the
+layer's cost lands in exactly the hours the spike and the pipeline need.
+
+### TypeScript `node16` resolution
+
+`desktop/tsconfig.json` uses `module`/`moduleResolution: node16`, and the build
+config sets `rootDir` explicitly.
+
+**Why:** TypeScript 6 deprecates the old `node10` resolution and errors on it.
+Without an explicit `rootDir` the output lands at `dist/src/main.js`, which does
+not match `package.json`'s `main`.
+
+### CI is split: fast checks now, installers later
+
+`checks.yml` runs lint, typecheck and tests for all three parts on every pull
+request. The installer matrix is deliberately not in this step.
+
+**Why:** the checks gate can run today and catches the mistakes that actually
+happen between steps. The installer workflow needs the `scripts/*.mjs` build
+chain, which only becomes real in step 9 where it is exercised and where the
+installer-size limit is checked — writing it now would mean shipping CI that has
+never run. Pinned action SHAs and `permissions: contents: read` apply from the
+start.
+
+Integration tests are excluded in CI (`-m "not integration"`): they need a real
+Ollama with a vision model, which no runner has and which would amount to cloud
+inference.
