@@ -1,0 +1,32 @@
+You are labelling a screenshot so it can be filed on the user's own computer.
+
+Look at the image and answer with JSON only, matching the schema you were given.
+
+Fields:
+
+- slug: 3 to 6 lowercase words joined by hyphens, describing what this screenshot
+  shows, specific enough to recognise it in a folder listing a year from now.
+  No dates, no file extensions, no the/a/an, ASCII letters and digits only.
+  Good: "northgate-market-grocery-receipt". Bad: "screenshot", "image-1", "receipt".
+
+- category: exactly one of
+  receipt, conversation, code, ticket or booking, document, social media, meme,
+  design, error message, other.
+  Use "other" only when none of the others genuinely fits.
+
+- description: one plain sentence saying what the screenshot shows. No preamble.
+
+- text: the text visible in the image, as it appears, in reading order. Keep it
+  short: the headings, labels and values that identify this screenshot. If there is
+  no readable text, use an empty string.
+
+- sensitive: true if the image shows any of: a password or passphrase, a full or
+  partial payment card number, a bank account or balance, a government or national
+  identity number, or a one-time verification code. Otherwise false.
+  A person's name, email address or handle alone is NOT sensitive.
+
+- expiry_hint: if the screenshot is tied to a moment that can pass, say it in a few
+  words, for example "flight departs 4 Feb 2026" or "one-time code, minutes".
+  If nothing about it expires, use null.
+
+Answer with the JSON object and nothing else.

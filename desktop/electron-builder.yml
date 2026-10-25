@@ -1,0 +1,110 @@
+# Everything the app needs at run time is bundled: the vision engine (Ollama), the api (one
+# PyInstaller program) and the generated web app. `node scripts/*.mjs` produces the inputs in
+# desktop/build, the same way on every system.
+#   macOS    unsigned, ad-hoc signed .dmg for Apple Silicon
+#   Windows  unsigned NSIS installer, x64
+#   Linux    AppImage and .deb, x64
+appId: mx.dev1.slothshot
+productName: Slothshot
+copyright: Copyright (c) 2026 Marco Ramírez. MIT License.
+directories:
+  output: release
+  buildResources: assets
+files:
+  - dist/**
+  - package.json
+asar: true
+# Switch off the Electron features this app never uses, so it cannot be turned into a general
+# Node runtime.
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  onlyLoadAppFromAsar: true
+  grantFileProtocolExtraPrivileges: false
+extraResources:
+  # The tray icon, which main.ts resolves under resources/assets when packaged.
+  - from: assets
+    to: assets
+    filter:
+      - trayTemplate*.png
+  - from: build/ollama
+    to: ollama
+  - from: build/api
+    to: api
+  - from: ../web/.output/public
+    to: web
+  - from: ../THIRD_PARTY_NOTICES.md
+    to: THIRD_PARTY_NOTICES.md
+  # Electron's license and the texts of the Chromium components it includes.
+  - from: node_modules/electron/dist/LICENSE
+    to: electron/LICENSE
+  - from: node_modules/electron/dist/LICENSES.chromium.html
+    to: electron/LICENSES.chromium.html
+mac:
+  artifactName: Slothshot-${version}-arm64.${ext}
+  category: public.app-category.utilities
+  icon: assets/icon.png
+  target:
+    - target: dmg
+      arch: arm64
+  # Ollama's binaries are built for macOS 14.
+  minimumSystemVersion: "14.0"
+  # No Developer ID certificate: sign ad hoc, which Apple Silicon needs to run the app at all.
+  # Hardened runtime would reject Electron's own frameworks under an ad-hoc signature.
+  identity: "-"
+  hardenedRuntime: false
+dmg:
+  title: Slothshot ${version}
+  sign: false
+win:
+  icon: assets/icon.png
+  target:
+    - target: nsis
+      arch: x64
+  artifactName: Slothshot-${version}-x64-setup.${ext}
+  # Not elevated: the app is installed per user and keeps its data in the user's folder.
+  requestedExecutionLevel: asInvoker
+nsis:
+  # An assisted installer, so the folder can be chosen. The models in the user's data folder are
+  # never touched by the uninstaller (deleteAppDataOnUninstall only exists for one-click
+  # installers and stays off).
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  uninstallDisplayName: Slothshot
+linux:
+  icon: assets/icon.png
+  category: Utility
+  executableName: slothshot
+  # Lets desktop environments tie the running window to the launcher entry (slothshot.desktop).
+  syncDesktopName: true
+  maintainer: Marco Ramírez <marco.ramirez@rzerocorp.com>
+  synopsis: Sorts your screenshots while you are not using your computer
+  target:
+    - target: AppImage
+      arch: x64
+    - target: deb
+      arch: x64
+appImage:
+  artifactName: Slothshot-${version}-x86_64.${ext}
+deb:
+  packageName: slothshot
+  artifactName: slothshot_${version}_amd64.${ext}
+  compression: xz
+  # electron-builder's defaults, plus the sound library Chromium links against. Ubuntu 24.04
+  # renamed several libraries (t64), hence the alternatives, so one package installs on Mint 21
+  # and 22.
+  depends:
+    - libgtk-3-0 | libgtk-3-0t64
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0 | libatspi2.0-0t64
+    - libuuid1
+    - libsecret-1-0
+    - libasound2 | libasound2t64

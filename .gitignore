@@ -9,3 +9,11 @@ samples/*
 !samples/README.md
 
 .DS_Store
+
+# Spike results are machine-specific; the Mac figures live in docs/BENCHMARKS.md.
+# Keep the directory so the script has somewhere to write.
+spike/results/*
+!spike/results/.gitkeep
+
+# Build inputs and outputs (downloads are checksum-pinned in scripts/versions.json).
+.dev/

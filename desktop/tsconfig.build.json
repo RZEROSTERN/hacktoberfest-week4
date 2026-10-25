@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  // rootDir is explicit so the output is dist/main.js, matching package.json's "main",
+  // rather than dist/src/main.js.
+  "compilerOptions": { "outDir": "dist", "rootDir": "src" },
+  "include": ["src/**/*.ts"]
+}

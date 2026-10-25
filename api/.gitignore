@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+build/
+dist/
+# The runtime SQLite directory is chosen by SLOTHSHOT_DATA_DIR (.dev/data in
+# development), never api/data, which holds the committed model catalog.
