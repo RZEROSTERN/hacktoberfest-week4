@@ -1,0 +1,162 @@
+# Pushing a version tag (v1.2.3) on master builds the installers for all three systems with build.yml, writes
+# SHA256SUMS and release notes, and creates a DRAFT GitHub Release with everything attached. It is never
+# published here: the owner publishes it by hand after trying the installers on real machines.
+#
+# Rehearsal: a pull request into develop carrying the label `ci-release-rehearsal` runs the same steps, creates a
+# draft named v<version>-rehearsal.<run> (a draft does not create a git tag), checks it, and deletes it again. That is
+# how the release path is tested before the first real tag, because a tag can only be pushed on master.
+name: Release (draft)
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    branches: [develop]
+    types: [opened, synchronize, reopened, labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false # a release build is never cancelled half way
+
+jobs:
+  verify:
+    name: Check the tag
+    if: >-
+      github.event_name == 'push' ||
+      contains(github.event.pull_request.labels.*.name, 'ci-release-rehearsal')
+    runs-on: ubuntu-22.04
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+      rehearsal: ${{ steps.tag.outputs.rehearsal }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.21.0
+
+      - name: The tag is a version, matches the app and is on master
+        id: tag
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "push" ]; then
+            TAG="$REF_NAME"
+            node scripts/release.mjs verify "$TAG"
+            git fetch --no-tags origin master
+            if ! git merge-base --is-ancestor "$SHA" origin/master; then
+              echo "::error::$TAG is not on master. Releases are tagged on master only."
+              exit 1
+            fi
+            VERSION="${TAG#v}"
+            REHEARSAL=false
+          else
+            VERSION=$(node -p "require('./desktop/package.json').version")
+            TAG="v${VERSION}-rehearsal.${RUN_ID}"
+            REHEARSAL=true
+          fi
+          {
+            echo "tag=$TAG"
+            echo "version=$VERSION"
+            echo "rehearsal=$REHEARSAL"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build
+    needs: verify
+    uses: ./.github/workflows/build.yml
+    with:
+      release: true
+
+  release:
+    name: Draft release
+    needs: [verify, build]
+    runs-on: ubuntu-22.04
+    # The only job that can write to the repository, and it can only create a draft.
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.verify.outputs.tag }}
+      VERSION: ${{ needs.verify.outputs.version }}
+      REHEARSAL: ${{ needs.verify.outputs.rehearsal }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.21.0
+
+      - name: Download the installers
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: installers-*
+          merge-multiple: true
+          path: dist
+
+      - name: Checksums and release notes
+        run: node scripts/release.mjs prepare dist "$VERSION"
+
+      - name: Create the draft release
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A release that is already published is never touched; an earlier draft for this tag is replaced.
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --paginate \
+            --jq ".[] | select(.tag_name==\"$TAG\") | \"\(.id) \(.draft)\"")
+          if [ -n "$existing" ]; then
+            read -r id draft <<<"$existing"
+            if [ "$draft" != "true" ]; then
+              echo "::error::$TAG is already published and is never overwritten"
+              exit 1
+            fi
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id"
+          fi
+          flags=(--draft --title "Slothshot $VERSION" --notes-file dist/RELEASE_NOTES.md)
+          case "$TAG" in *-*) flags+=(--prerelease) ;; esac
+          if [ "$REHEARSAL" = true ]; then
+            flags+=(--target "$GITHUB_SHA")   # the tag does not exist; a draft does not create it
+          else
+            flags+=(--verify-tag)             # the tag must already be in the repository
+          fi
+          gh release create "$TAG" "${flags[@]}" dist/*.dmg dist/*.exe dist/*.AppImage dist/*.deb dist/SHA256SUMS
+
+      - name: It is a draft, with every file
+        shell: bash
+        run: |
+          set -euo pipefail
+          release=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq ".[] | select(.tag_name==\"$TAG\")")
+          [ "$(jq -r .draft <<<"$release")" = true ] || { echo "::error::the release is not a draft"; exit 1; }
+          assets=$(jq -r '.assets[] | "\(.name) \(.size)"' <<<"$release")
+          [ "$(wc -l <<<"$assets")" -eq 5 ] || { echo "::error::expected 4 installers and SHA256SUMS"; echo "$assets"; exit 1; }
+          {
+            echo "### Draft release $TAG"
+            echo
+            echo "It is a **draft**: nothing is published. Try the installers on real machines, then publish it by hand."
+            echo
+            jq -r '.html_url' <<<"$release"
+            echo
+            jq -r '.assets[] | "- `\(.name)`, \(.size / 1000000 | floor) MB"' <<<"$release"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # A rehearsal leaves nothing behind.
+      - name: Delete the rehearsal draft
+        if: always() && env.REHEARSAL == 'true'
+        shell: bash
+        run: |
+          id=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq ".[] | select(.tag_name==\"$TAG\" and .draft==true) | .id")
+          [ -z "$id" ] || gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id"

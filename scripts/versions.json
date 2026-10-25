@@ -1,0 +1,13 @@
+{
+  "_comment": "Everything the installers bundle, pinned. Change a version here and nothing else; CI caches on this file.",
+  "ollama": {
+    "version": "v0.35.1",
+    "licenseSha256": "5934ed2ce0d15154bcdb9c85203210abac0da4314af34081e36df4599f90b226",
+    "assets": {
+      "darwin-arm64": { "file": "ollama-darwin.tgz", "sha256": "3137dbf28948ee844e0fb3e584d9b5de6879d73d9f0cb7eff3ad64930601d307" },
+      "win32-x64": { "file": "ollama-windows-amd64.zip", "sha256": "dc50b9ca7f9023c86525012632cd1615b093d0407987444a7f62ecab617e8e93" },
+      "linux-x64": { "file": "ollama-linux-amd64.tar.zst", "sha256": "9fcd79ac4575b2bd31b992eee18b1000c8ad126b451627c8f8cd091714cfbb10" }
+    }
+  },
+  "maxInstallerBytes": 1500000000
+}

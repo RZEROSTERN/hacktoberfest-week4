@@ -481,3 +481,66 @@ is impossible for a 1.9 GB model. Ollama's own process holds almost nothing; the
 in a child process named `llama-server`, and `"llama-server"` does not contain the substring
 `"ollama"`. Any future measurement that matches on the process name has to match both, or it
 will report a number that looks like a triumph and is a bug.
+
+---
+
+## Step 9 — Cross-platform builds
+
+### CI runs the repository's own scripts, and a test keeps them honest
+
+`.github/workflows/build.yml` calls `node scripts/*.mjs`; `npm run dist` calls the same
+scripts in the same order. `scripts/dist.test.mjs` parses the workflow and fails if the two
+lists differ.
+
+**Why:** the failure mode otherwise is a release built by steps nobody ever ran locally, or a
+local build that passes while CI cannot. The same test file also enforces two rules from
+`.claude/rules/ci.md` mechanically: every third-party action is pinned to a full commit SHA,
+and no workflow targets a branch named `main`.
+
+That second check caught its own author: the first version matched the bare word anywhere in
+the file, and failed on the comment explaining the rule. It now matches branch references
+(`branches: [...]`, `origin/main`, `refs/heads/main`) rather than prose.
+
+### CUDA is left out so the installers fit
+
+The Linux Ollama archive is 1.3 GB compressed and the Windows one 1.85 GiB unpacked, of which
+the CUDA backends are about 1.3 GiB. `fetch-ollama.mjs` excludes `lib/ollama/cuda_*` and
+`rocm*` and keeps Vulkan.
+
+**Why Vulkan and not CUDA:** Ollama enables Vulkan by default when its backend is present, and
+it runs on AMD, Intel and NVIDIA drivers, so one backend covers every machine this ships to.
+Shipping CUDA would serve NVIDIA alone and put the installer past the 1.5 GB limit. The script
+verifies its own exclusions and fails if a CUDA folder survived or if Vulkan is missing,
+because a silent miss here is a 1.9 GB installer discovered at release time.
+
+### The smoke test proves wiring, not inference
+
+On each platform it checks that every bundled program starts, that the bundled Ollama serves
+on loopback, that the PyInstaller api answers `/health`, that the api can reach that Ollama
+across a process boundary, and that the model catalog survived bundling. It runs in a folder
+whose name carries an accent, as a Windows user name may.
+
+**Why it stops short of inference:** the smallest vision model is 1.9 GB. Pulling it onto
+three runners every build would be slow, and it would mean running the product's own workload
+on someone else's computer — the thing Slothshot exists to avoid. Inference is proven locally
+instead, and those numbers are in BENCHMARKS.md. The decision was put to the maintainer rather
+than taken quietly, because it trades CI coverage for principle and schedule.
+
+### `GET /api/engine` exists because the smoke test needed it
+
+Nothing in the api previously reported whether Ollama was reachable, so there was no way to
+prove the two halves could talk after packaging.
+
+**Why it is not throwaway:** the first-launch wizard needs exactly this — is the engine up,
+what is installed, is the chosen model actually there, and what is recommended. It returns a
+usable answer when the engine is down rather than failing, because "not running yet" is the
+normal state on first launch.
+
+### A bug the smoke test found immediately
+
+It looked for the web app at `desktop/build/web`. Before packaging, the generated SPA is still
+at `web/.output/public`; only electron-builder copies it into `resources/web`.
+
+**Why this is worth recording:** the check was wrong for the pre-package case on every
+platform, so it would have failed on all three runners at once, during the first full matrix
+build, with the deadline close. Running the build locally before pushing it is what caught it.

@@ -15,8 +15,11 @@ suggests a name, category and description; everything runs on the user's own mac
 - web / desktop (`cd web`, `cd desktop`): `npm install`, `npm run lint`, `npm run typecheck`,
   `npm test`. Also `npm run dev` (web, port 3000), `npm run generate` (the SPA the shell
   loads), `npm run build` and `npm start` (desktop)
-- Installer for this OS: `npm run dist` from the root (same steps as CI; added in step 9)
-- CI (`.github/workflows/`): `checks.yml` gates every PR on all three parts
+- Installer for this OS: `npm run dist` (same steps as CI; `-- --from <step>` resumes,
+  `--list` shows them). Steps in `scripts/steps.mjs`, pinned versions in `scripts/versions.json`
+- CI (`.github/workflows/`): `checks.yml` gates every PR; `build.yml` builds installers
+  (release PRs into master, manual, or a develop PR labelled `ci-build`); `release.yml`
+  makes a DRAFT release on a `v*` tag
 
 ## Git: GitFlow, no stacked PRs
 - `master` is production. `develop` is integration. Never commit to either directly.
