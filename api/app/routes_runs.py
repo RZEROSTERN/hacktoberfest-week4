@@ -5,6 +5,7 @@ from sqlmodel import Session, col, select
 from app.errors import ApiError
 from app.models import Category, Run
 from app.runs import RunManager
+from app.undo import undo_run
 
 router = APIRouter(prefix="/api/runs")
 
@@ -96,3 +97,47 @@ def preview(request: Request, run_id: int) -> list[PreviewItem]:
         )
         for s in _manager(request).preview(run_id)
     ]
+
+
+class PlanItem(BaseModel):
+    screenshot_id: int
+    from_path: str
+    to_path: str
+    review: bool
+    reason: str
+
+
+class UndoOut(BaseModel):
+    restored: int
+
+
+@router.get("/{run_id}/plan")
+def plan(request: Request, run_id: int) -> list[PlanItem]:
+    """Exactly what would move, and where. Nothing on disk is touched by asking."""
+    return [
+        PlanItem(
+            screenshot_id=p.screenshot_id,
+            from_path=str(p.from_path),
+            to_path=str(p.to_path),
+            review=p.review,
+            reason=p.reason,
+        )
+        for p in _manager(request).plan(run_id)
+    ]
+
+
+@router.post("/{run_id}/approve")
+def approve(request: Request, run_id: int) -> RunOut:
+    """Approve the first sort. Later runs organize without asking again."""
+    manager = _manager(request)
+    manager.approve(run_id)
+    engine = request.app.state.engine
+    with Session(engine) as session:
+        run = session.get(Run, run_id)
+        assert run is not None
+        return RunOut.of(run)
+
+
+@router.post("/{run_id}/undo")
+def undo_one_run(request: Request, run_id: int) -> UndoOut:
+    return UndoOut(restored=undo_run(request.app.state.engine, run_id))
