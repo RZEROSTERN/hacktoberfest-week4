@@ -232,3 +232,45 @@ found. All four sensitive rows store `null` for their text.
 
 The screenshot is still findable: searching `password` returns the vault screenshot by its
 description. Being unable to find a sensitive screenshot *at all* would be its own failure.
+
+---
+
+## Resource budget — 25 October 2026
+
+A full run of the 28 fixtures through the real api process, with `qwen3-vl:2b-instruct` at
+768px, sampling resident memory every 250 ms. MacBook Pro M2 Pro, 16 GB.
+
+| | Peak RSS | Budget |
+| --- | --- | --- |
+| api (FastAPI + Pillow) | 0.09 GB | — |
+| **Ollama + model** | **2.71 GB** | **3.00 GB** ✓ |
+| api + Ollama + model | 2.76 GB | — |
+| Ollama once the run ended | **0.02 GB** | model released ✓ |
+
+The run sorted 28 files in 139 s, 26 of them through the model and 2 settled as duplicates.
+
+**The model is released, not merely scheduled for release.** Ollama drops from 2.71 GB to
+0.02 GB as soon as the run finishes, rather than after the keep-alive expires.
+
+**Electron is not in these numbers.** The shell is measured against the whole-app 4 GB budget
+in step 9, on the packaged build, because an unpackaged Electron in development is not the
+thing a user runs. On these figures the shell has roughly 1.2 GB of headroom before the
+budget is at risk.
+
+### The measurement was wrong the first time
+
+The first run reported **0.03 GB** for Ollama, which is impossible for a 1.9 GB model. Ollama's
+own process holds almost nothing: the model lives in a child process named **`llama-server`**,
+and `"llama-server"` does not contain the substring `"ollama"`. The script matched only the
+latter.
+
+Direct inspection with a model loaded:
+
+```
+   8991  rss=  0.02 GB  name='ollama'
+  72693  rss=  2.15 GB  name='llama-server'
+```
+
+`spike/benchmark.py` always matched both; the mistake was in the newer script. Any future
+measurement that matches on process name has to match both, or it reports a number that looks
+like a triumph and is a bug.

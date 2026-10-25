@@ -20,7 +20,10 @@ const { data: summary, error } = await useSummary()
         {{ summary.total_indexed }} screenshots indexed. Nothing is ever deleted, and every
         change can be undone.
       </p>
-      <NuxtLink to="/search">Search your screenshots →</NuxtLink>
+      <p class="links">
+        <NuxtLink to="/search">Search your screenshots</NuxtLink>
+        <NuxtLink to="/settings">Settings</NuxtLink>
+      </p>
     </article>
   </section>
 </template>
@@ -35,4 +38,5 @@ const { data: summary, error } = await useSummary()
 .card h2 { margin: 0 0 .5rem; font-size: 1.25rem; }
 .card p { margin: .25rem 0; }
 .small { font-size: .875rem; margin-top: 1rem; }
+.links { display: flex; gap: 1.25rem; margin-top: 1rem; }
 </style>

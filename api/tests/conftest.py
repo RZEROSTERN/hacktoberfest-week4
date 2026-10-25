@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
@@ -15,13 +15,18 @@ class ScriptedVision:
     """Stands in for the model. Answers every image the same way unless told otherwise."""
 
     def __init__(self, answer: Analysis | None = None) -> None:
+        # Lets a test act at a known point in a run, without sleeping and hoping.
+        self.on_call: Callable[[int], None] | None = None
         self.answer = answer or Analysis.model_validate(
             {"slug": "a-screenshot", "category": "other", "description": "d", "text": "t"}
         )
         self.calls = 0
+        self.unloads = 0
 
     def analyze(self, image: Image.Image) -> VisionResult:
         self.calls += 1
+        if self.on_call is not None:
+            self.on_call(self.calls)
         return VisionResult(
             analysis=self.answer,
             seconds=0.01,
@@ -29,6 +34,9 @@ class ScriptedVision:
             model="fake:1",
             prompt_version="analyze.v1",
         )
+
+    def unload(self) -> None:
+        self.unloads += 1
 
 
 @pytest.fixture

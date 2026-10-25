@@ -49,7 +49,11 @@ class VisionResult:
 
 
 class Vision(Protocol):
+    """What a run needs from the model; tests replace it with a scripted stand-in."""
+
     def analyze(self, image: Image.Image) -> VisionResult: ...
+
+    def unload(self) -> None: ...
 
 
 class OllamaVision:
@@ -109,6 +113,27 @@ class OllamaVision:
         # want when comparing models.
         elapsed = float(body.get("total_duration", 0)) / 1e9
         return body.get("message", {}).get("content", ""), elapsed
+
+    def unload(self) -> None:
+        """Ask Ollama to drop the model from memory now, rather than after the keep-alive.
+
+        A run is a queue of single images; once it ends, holding several gigabytes for another
+        half minute is the difference between a good neighbour and a bad one. Ollama documents
+        a request carrying `keep_alive: 0` as the way to unload.
+
+        Failures are ignored on purpose: the keep-alive will do it shortly anyway, and a run
+        that finished successfully must not be reported as failed over this.
+        """
+        model = self._model()
+        if not model:
+            return
+        try:
+            with httpx.Client(
+                base_url=self._base_url, timeout=30, transport=self._transport
+            ) as client:
+                client.post("/api/generate", json={"model": model, "keep_alive": 0})
+        except httpx.HTTPError:
+            pass
 
     def analyze(self, image: Image.Image) -> VisionResult:
         model = self._model()

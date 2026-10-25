@@ -17,6 +17,7 @@ class RunOut(BaseModel):
     found: int
     analyzed: int
     skipped: int
+    organized: int
     duplicates: int
     expired: int
     reviewable_bytes: int
@@ -30,6 +31,7 @@ class RunOut(BaseModel):
             found=run.found,
             analyzed=run.analyzed,
             skipped=run.skipped,
+            organized=run.organized,
             duplicates=run.duplicates,
             expired=run.expired,
             reviewable_bytes=run.reviewable_bytes,

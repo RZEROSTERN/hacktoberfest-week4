@@ -23,6 +23,7 @@ class FakeVision:
     def __init__(self, *answers: Analysis | ApiError) -> None:
         self.answers = list(answers)
         self.calls = 0
+        self.unloads = 0
 
     def analyze(self, image: Image.Image) -> VisionResult:
         self.calls += 1
@@ -32,6 +33,9 @@ class FakeVision:
         return VisionResult(
             analysis=answer, seconds=0.1, retried=False, model="fake:1", prompt_version="analyze.v1"
         )
+
+    def unload(self) -> None:
+        self.unloads += 1
 
 
 def analysis(**over: object) -> Analysis:

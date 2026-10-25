@@ -23,6 +23,11 @@ electronFuses:
   onlyLoadAppFromAsar: true
   grantFileProtocolExtraPrivileges: false
 extraResources:
+  # The tray icon, which main.ts resolves under resources/assets when packaged.
+  - from: assets
+    to: assets
+    filter:
+      - trayTemplate*.png
   - from: build/ollama
     to: ollama
   - from: build/api

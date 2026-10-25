@@ -10,6 +10,9 @@ VISION_MODEL = "vision_model"
 # turns this on. See .claude/rules/api.md.
 INDEX_SENSITIVE_TEXT = "index_sensitive_text"
 FIRST_RUN_APPROVED = "first_run_approved"
+# The schedule, as JSON. Stored here so it survives a restart; enforced in the desktop shell,
+# which is the only part that can see idleness and power state.
+SCHEDULE = "schedule"
 
 
 def get_setting(engine: Engine, key: str) -> str | None:
