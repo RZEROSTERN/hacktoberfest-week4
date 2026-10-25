@@ -282,11 +282,26 @@ like a triumph and is a bug.
 Built with `npm run dist`, which runs the same scripts in the same order as
 `.github/workflows/build.yml`. A test (`scripts/dist.test.mjs`) fails if the two ever drift.
 
+All three platforms built on their own runners (run 40214157711, all green).
+
 | Installer | Size | Limit |
 | --- | --- | --- |
-| `Slothshot-0.1.0-arm64.dmg` (macOS, Apple Silicon) | **300.7 MB** | 1.50 GB ✓ |
-| Windows NSIS `.exe` (x64) | built by CI | 1.50 GB |
-| Linux AppImage and `.deb` (x64) | built by CI | 1.50 GB |
+| `Slothshot-0.1.0-arm64.dmg` (macOS, Apple Silicon) | **302.7 MB** | 1.50 GB ✓ |
+| `Slothshot-0.1.0-x64-setup.exe` (Windows, NSIS) | **about 165 MB** | 1.50 GB ✓ |
+| `Slothshot-0.1.0-x86_64.AppImage` (Linux) | **204.1 MB** | 1.50 GB ✓ |
+| `slothshot_0.1.0_amd64.deb` (Linux) | **165.1 MB** | 1.50 GB ✓ |
+
+The largest is a fifth of the limit. The Windows figure is the uploaded artifact, which is the
+installer plus its `.sha256`.
+
+**macOS is the biggest, which is not what the raw archives suggest.** Nothing is excluded
+there, and the Metal libraries are large; Windows and Linux lose their CUDA backends:
+
+| Bundled Ollama, after the exclusions | Size |
+| --- | --- |
+| macOS (Metal, nothing excluded) | 479 MiB |
+| Windows (CPU + Vulkan, CUDA and ROCm removed) | **113.5 MB**, from 1.85 GiB |
+| Linux (CPU + Vulkan, CUDA and ROCm removed) | **106.2 MB**, from 1.3 GB compressed |
 
 What is inside the macOS app:
 
