@@ -88,3 +88,47 @@ export interface AppSettings {
   schedule: Schedule
   paused: boolean
 }
+
+export interface RecommendedModel {
+  model: string
+  title: string
+  recommended: boolean
+  size_bytes: number
+  size_exact: boolean
+  ram_gb: number
+  max_image_px: number
+  license: string
+  note: string
+}
+
+export type SetupState =
+  | 'idle' | 'running' | 'paused' | 'failed' | 'compat_failed' | 'interrupted' | 'done'
+
+export interface SetupStep {
+  id: string
+  label: string
+  state: 'pending' | 'running' | 'done' | 'failed'
+  detail: string | null
+  skipped: boolean
+  completed: number
+  total: number
+  speed_bps: number | null
+  eta_s: number | null
+}
+
+export interface SetupProgress {
+  state: SetupState
+  model: string | null
+  steps: SetupStep[]
+  error_code: string | null
+  overall: { fraction: number, completed_bytes: number, total_bytes: number }
+}
+
+export interface SetupStatus {
+  ready: boolean
+  ollama_reachable: boolean
+  model: { model: string | null, state: string }
+  compat_ok: boolean
+  run: { state: SetupState, model: string | null, fraction: number }
+  recommended: RecommendedModel[]
+}

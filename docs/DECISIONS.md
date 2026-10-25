@@ -544,3 +544,61 @@ at `web/.output/public`; only electron-builder copies it into `resources/web`.
 **Why this is worth recording:** the check was wrong for the pre-package case on every
 platform, so it would have failed on all three runners at once, during the first full matrix
 build, with the deadline close. Running the build locally before pushing it is what caught it.
+
+---
+
+## Step 8 — First-launch wizard
+
+### The compatibility check does not ask the model whether it can see
+
+It renders a short token into a test image and requires the token back in the answer.
+
+**Why:** the recommended list holds only vision models, but the wizard also lets the user name
+any model in the Ollama library, and a text-only model asked to describe a picture returns a
+confident, perfectly-shaped, entirely invented answer. Constrained JSON does not catch that —
+the shape is right and the content is fiction. A model that cannot read the image has no way to
+produce the token.
+
+A model that *can* see but cannot read plain high-contrast text would also be useless for
+screenshots, so failing on that is the right answer too. Verified against both recommended
+models (6.4 s and 14.9 s) and, in tests, against a stand-in that returns a plausible answer
+without ever having looked.
+
+### The test image is generated, not shipped
+
+**Why:** one less file to bundle, and no asset that can go missing from the packaged binary —
+which is exactly the class of bug the smoke test in step 9 exists to catch.
+
+### Cloud models are refused twice
+
+Once by name before anything downloads, and again after install when Ollama reveals
+`remote_host`, at which point the model is deleted rather than kept.
+
+**Why:** a name check alone can be worked around, and the second check is the one that knows
+the truth. Using a cloud model would mean sending the user's screenshots to someone else's
+computer, which is the single thing this product exists to prevent.
+
+### A model downloaded elsewhere still has to pass the check
+
+`activate` refuses with `compat_needed` for a model that is installed but has never been
+checked on this computer.
+
+**Why:** "it is installed" and "it works here" are different claims. A model pulled by an older
+version, or by hand, has never been through the image check, and the point of the check is that
+it runs on the machine that will do the work.
+
+### Pausing keeps what arrived; interruption asks rather than resumes
+
+A paused download continues from where it stopped. A run cut short by closing the app comes
+back as `interrupted` and is *offered* on the next launch.
+
+**Why:** resuming a multi-gigabyte download silently, possibly on a metered connection the user
+has since moved to, is not a decision the app gets to make on its own.
+
+### The route guard sends a fresh install to the wizard, and nowhere else
+
+It never redirects away from the wizard, and it does nothing when the api cannot be reached.
+
+**Why:** being unable to ask whether setup is done is not a reason to assume it is not. A guard
+that redirects on a failed request would trap the user in a loop the moment the api was slow to
+start.

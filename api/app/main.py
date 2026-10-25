@@ -7,10 +7,13 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.catalog import load_catalog
+from app.compat import CompatChecker, OllamaCompatChecker
 from app.config import Settings
 from app.db import make_engine
 from app.errors import ApiError
 from app.indexing import Indexer
+from app.ollama import ModelEngine, OllamaAdmin
 from app.organize import Organizer
 from app.routes import router
 from app.routes_engine import router as engine_router
@@ -18,13 +21,20 @@ from app.routes_folders import router as folders_router
 from app.routes_runs import router as runs_router
 from app.routes_search import router as search_router
 from app.routes_settings import router as settings_router
+from app.routes_setup import router as setup_router
 from app.routes_undo import router as undo_router
 from app.runs import RunManager
 from app.settings_store import VISION_MODEL, seed_setting, vision_model_getter
+from app.setup import SetupManager
 from app.vision import OllamaVision, Vision
 
 
-def create_app(settings: Settings | None = None, vision: Vision | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    vision: Vision | None = None,
+    ollama: ModelEngine | None = None,
+    compat: CompatChecker | None = None,
+) -> FastAPI:
     """The engines can be swapped in tests; the defaults are the real ones."""
     settings = settings or Settings()
     settings.data_dir.mkdir(parents=True, exist_ok=True)
@@ -47,10 +57,26 @@ def create_app(settings: Settings | None = None, vision: Vision | None = None) -
     runs = RunManager(engine, indexer, Organizer(engine), executor, engine_vision, pause)
     runs.recover()
 
+    # Downloads are mostly waiting for the network, so they get their own worker and never
+    # block a sorting run.
+    setup_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="setup")
+    model_engine = ollama or OllamaAdmin(settings.ollama_url)
+    setup = SetupManager(
+        engine,
+        load_catalog(),
+        model_engine,
+        compat or OllamaCompatChecker(settings.ollama_url, prompts_dir=settings.prompts_dir),
+        setup_executor,
+        settings.models_dir,
+    )
+    setup.recover()
+
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         yield
+        setup.stop()
         executor.shutdown(wait=True, cancel_futures=True)
+        setup_executor.shutdown(wait=True, cancel_futures=True)
 
     app = FastAPI(title="Slothshot API", lifespan=lifespan)
 
@@ -68,6 +94,8 @@ def create_app(settings: Settings | None = None, vision: Vision | None = None) -
     app.state.engine = engine
     app.state.executor = executor
     app.state.runs = runs
+    app.state.setup = setup
+    app.state.ollama = model_engine
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -81,6 +109,7 @@ def create_app(settings: Settings | None = None, vision: Vision | None = None) -
     app.include_router(undo_router)
     app.include_router(search_router)
     app.include_router(settings_router)
+    app.include_router(setup_router)
 
     @app.get("/health")
     def health() -> dict[str, str]:

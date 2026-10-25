@@ -123,21 +123,17 @@ shasum -a 256 -c SHA256SUMS  # macOS
 
 ---
 
-## First launch: getting a model
-
-> **Known gap in 0.1.0.** The guided download wizard is not built yet. Until it is, Slothshot needs a model put in place by hand.
+## First launch
 
 Slothshot bundles the Ollama engine but **no model weights** — that keeps the installer at a few hundred megabytes instead of several gigabytes, and it means you choose what runs on your machine.
 
-For now:
+On first launch the wizard shows the models it has actually been tested with, each with **what it will cost you before anything is downloaded**: the download size, the memory it needs and its license. Nothing is downloaded until you pick one.
 
-```sh
-ollama pull qwen3-vl:2b-instruct
-```
+While it downloads you get the size, the speed and a rough time remaining, and you can **pause and continue** — closing the app mid-download is offered again next time rather than resumed behind your back.
 
-and set `SLOTHSHOT_VISION_MODEL=qwen3-vl:2b-instruct`. The Settings screen shows which model is in use and the size images are downscaled to before it sees them.
+Then it runs a check that matters: **it renders a short token into a test image and requires the model to read it back.** The recommended list only holds vision models, but the wizard also lets you name any model in the Ollama library, and a text-only model asked to describe a picture will happily invent one. A model that cannot see has no way to produce the token, so it is refused instead of silently producing nonsense for every screenshot you own.
 
----
+Cloud models are refused outright, by name and again after install. They would mean sending your screenshots to someone else's computer, which is the thing this app exists to avoid.
 
 ## The models
 
@@ -303,7 +299,6 @@ Working: scanning, duplicates, the model pipeline, preview and approval, rename 
 
 Not yet:
 
-- **The first-launch model wizard.** Pull the model by hand for now (above).
 - **75% category accuracy on the default model**, below the 85% goal. The misses cluster on `document` versus the more specific categories, and there are ~6 seconds per screenshot of unused headroom to spend on a better prompt. Written up in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 - **The Windows and Linux installers are built and smoke-tested in CI, but have not been installed on real machines.**
 

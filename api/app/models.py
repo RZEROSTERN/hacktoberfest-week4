@@ -10,7 +10,9 @@ Two rules shape this schema:
 
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Any
 
+from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
 
 
@@ -144,3 +146,25 @@ class Change(SQLModel, table=True):
     applied: bool = Field(default=False, index=True)
     applied_at: datetime | None = None
     undone_at: datetime | None = Field(default=None, index=True)
+
+
+class SetupState(StrEnum):
+    IDLE = "idle"
+    RUNNING = "running"
+    PAUSED = "paused"  # the user paused; resuming continues where it stopped
+    FAILED = "failed"  # a download or check failed; trying again continues where it stopped
+    COMPAT_FAILED = "compat_failed"  # the model downloaded but cannot read an image
+    INTERRUPTED = "interrupted"  # the app was closed mid-run; the user is asked before resuming
+    DONE = "done"
+
+
+class SetupRun(SQLModel, table=True):
+    """The last model setup (first launch or Settings), kept so it can resume after a restart."""
+
+    id: int = Field(default=1, primary_key=True)
+    state: SetupState = SetupState.IDLE
+    model_tag: str | None = None
+    steps: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
+    overall_fraction: float = 0.0
+    error_code: str | None = None
+    updated_at: datetime = Field(default_factory=_now)
