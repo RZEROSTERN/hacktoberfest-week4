@@ -14,6 +14,7 @@ from app.organize import Organizer
 from app.routes import router
 from app.routes_folders import router as folders_router
 from app.routes_runs import router as runs_router
+from app.routes_search import router as search_router
 from app.routes_undo import router as undo_router
 from app.runs import RunManager
 from app.settings_store import VISION_MODEL, seed_setting, vision_model_getter
@@ -75,6 +76,7 @@ def create_app(settings: Settings | None = None, vision: Vision | None = None) -
     app.include_router(folders_router)
     app.include_router(runs_router)
     app.include_router(undo_router)
+    app.include_router(search_router)
 
     @app.get("/health")
     def health() -> dict[str, str]:

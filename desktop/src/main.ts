@@ -1,9 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { BrowserWindow, app, net, protocol, shell } from 'electron'
+import { BrowserWindow, Notification, app, net, protocol, shell } from 'electron'
 
 import { APP_HOST, APP_ORIGIN, APP_SCHEME } from './env'
 import { dataDirs, layout } from './layout'
+import { RunAnnouncer, type Summary } from './notify'
 import { isAllowedExternal, isAllowedRequest } from './security'
 
 // Development: `npm run dev` serves the Nuxt app and the api itself, so the shell points at them
@@ -20,6 +21,34 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 let mainWindow: BrowserWindow | null = null
+let summaryTimer: NodeJS.Timeout | null = null
+
+// How often the shell asks the api whether a run finished. A run takes minutes, so this is
+// about noticing it ended, not about watching it happen.
+const SUMMARY_POLL_MS = 30_000
+
+/**
+ * One notification per finished run. The announcer decides whether there is anything worth
+ * saying; this only delivers it.
+ */
+function watchForFinishedRuns(apiOrigin: string): void {
+  const announcer = new RunAnnouncer()
+
+  const tick = async (): Promise<void> => {
+    try {
+      const response = await net.fetch(`${apiOrigin}/api/summary`)
+      if (!response.ok) return
+      const notification = announcer.consider((await response.json()) as Summary)
+      if (notification && Notification.isSupported()) {
+        new Notification({ title: notification.title, body: notification.body }).show()
+      }
+    } catch {
+      // The api is not up yet, or is restarting. Nothing to report either way.
+    }
+  }
+
+  summaryTimer = setInterval(() => void tick(), SUMMARY_POLL_MS)
+}
 
 /** Serves the generated SPA from the resources folder, refusing anything outside it. */
 function registerAppProtocol(webRoot: string): void {
@@ -99,6 +128,11 @@ if (!app.requestSingleInstanceLock()) {
     mainWindow.on('closed', () => {
       mainWindow = null
     })
+    watchForFinishedRuns(apiOrigin)
+  })
+
+  app.on('will-quit', () => {
+    if (summaryTimer) clearInterval(summaryTimer)
   })
 
   app.on('window-all-closed', () => {

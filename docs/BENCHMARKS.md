@@ -202,3 +202,33 @@ and therefore never sent to Review. A row now identifies a *file* and the hash i
 from the UTC date, so an evening screenshot west of Greenwich was filed under tomorrow. The
 prefix is now the user's own local date. A test pins it with a Mexico City evening whose UTC
 date has already rolled over.
+
+---
+
+## Morning card and search — 24 October 2026
+
+A full sort of the 28 fixtures, then the card and a handful of searches.
+
+| Card | |
+| --- | --- |
+| Sorted | 28 |
+| Skipped | 0 |
+| Duplicates waiting in Review | 2 |
+| Expired waiting in Review | 1 |
+| Space deleting those by hand would free | 62 KB |
+| Indexed | 28 |
+
+| Query | Hits | Matched on |
+| --- | --- | --- |
+| `receipt` | 3 | description |
+| `password` | 1 | description |
+| `booking` | 1 | description |
+| `traceback` | 1 | **stored text** |
+| `482913` | **0** | — |
+
+That last row is the one that matters. `482913` is the verification code shown in the
+sensitive SMS fixture, and the model read it correctly — it is simply not in the index to be
+found. All four sensitive rows store `null` for their text.
+
+The screenshot is still findable: searching `password` returns the vault screenshot by its
+description. Being unable to find a sensitive screenshot *at all* would be its own failure.
