@@ -57,7 +57,7 @@ export function renderNotes({ version, rows }) {
   const table = rows.map(r => `| ${r.system} | \`${r.file}\` | ${formatBytes(r.bytes)} |`).join('\n')
   return `# Slothshot ${version}
 
-Turns a recorded client call into a draft proposal, entirely on your computer. These installers are **not signed**, so each system warns the first time you open the app; the steps are below.
+Sorts the screenshots piling up on your computer while you are not using it, entirely offline. These installers are **not signed**, so each system warns the first time you open the app; the steps are below. The warning means the system cannot confirm who built the app, not that it found anything wrong with it.
 
 | System | File | Size |
 | --- | --- | ---: |
@@ -65,20 +65,22 @@ ${table}
 
 ## Install
 
-- **macOS.** Open the \`.dmg\` and drag Slothshot into Applications. The first time, macOS blocks it: open System Settings, then Privacy & Security, scroll down and click **Open Anyway** next to Slothshot.
+- **macOS.** Open the \`.dmg\` and drag Slothshot into Applications. The first launch is refused: **right-click the app, choose Open**, then **Open** again. Double-clicking will not work. If macOS still refuses, open System Settings, then Privacy & Security, scroll down and click **Open Anyway**.
 - **Windows 11.** Run the \`-setup.exe\`. SmartScreen shows "Windows protected your PC": click **More info**, then **Run anyway**. It installs for your user and does not need administrator rights.
-- **Linux, \`.deb\`** (Linux Mint, Ubuntu, Debian): \`sudo apt install ./slothshot_${version}_amd64.deb\`, then open Slothshot from the menu.
-- **Linux, AppImage:** \`chmod +x Slothshot-${version}-x86_64.AppImage\` and run it. It needs FUSE 2 (\`sudo apt install libfuse2\`, or \`libfuse2t64\` on Ubuntu 24.04 and Mint 22). If it stops with a sandbox error, use the \`.deb\`.
+- **Linux, \`.deb\`** (Linux Mint, Ubuntu, Debian): \`sudo apt install ./slothshot_\${version}_amd64.deb\`, then open Slothshot from the menu.
+- **Linux, AppImage:** \`chmod +x Slothshot-\${version}-x86_64.AppImage\` and run it. It needs FUSE 2 (\`sudo apt install libfuse2\`, or \`libfuse2t64\` on Ubuntu 24.04 and Mint 22). If it stops with a sandbox error, use the \`.deb\`.
 
 ## First launch
 
-Slothshot asks to download its AI models once (about 7.2 GB, use Wi-Fi). After that it works offline. On Windows and Linux the language model runs on the CPU, or on a graphics card through Vulkan when its driver supports it; NVIDIA CUDA is not included. The Windows and Linux builds need a CPU with AVX2 (Intel since 2013, AMD since 2015).
+Slothshot bundles the engine but no model weights. On first launch it offers the models it has been tested with, with the download size, the memory each needs and its license, and downloads nothing until you choose one. The recommended model is about 1.9 GB. After that it works offline, and downloading a model is the only time this app uses the network.
+
+On Windows and Linux the model runs on the CPU, or on a graphics card through Vulkan when the driver supports it. NVIDIA CUDA is not bundled: it is about 1.3 GB on its own, and Vulkan covers AMD, Intel and NVIDIA.
 
 ## Check your download
 
 \`SHA256SUMS\` lists the SHA-256 of every file here. macOS: \`shasum -a 256 -c SHA256SUMS --ignore-missing\`. Linux: \`sha256sum -c SHA256SUMS --ignore-missing\`. Windows (PowerShell): \`Get-FileHash .\\<file> -Algorithm SHA256\` and compare with the line in the list.
 
-More in the [README](https://github.com/RZEROSTERN/hacktoberfest-week3#readme) and [docs/RELEASE_CHECKLIST.md](https://github.com/RZEROSTERN/hacktoberfest-week3/blob/master/docs/RELEASE_CHECKLIST.md).
+More in the [README](https://github.com/RZEROSTERN/hacktoberfest-week4#readme), with the measured numbers in [docs/BENCHMARKS.md](https://github.com/RZEROSTERN/hacktoberfest-week4/blob/master/docs/BENCHMARKS.md).
 `
 }
 

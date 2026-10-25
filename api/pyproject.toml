@@ -1,6 +1,6 @@
 [project]
 name = "slothshot-api"
-version = "0.1.0"
+version = "1.0.0"
 description = "Local screenshot organizer API. Runs entirely on the user's machine."
 requires-python = ">=3.12"
 dependencies = [
