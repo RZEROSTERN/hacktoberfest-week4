@@ -1,0 +1,137 @@
+# Builds the Slothshot installers on real runners of each system and checks that what is inside them works:
+#   macOS    .dmg, Apple Silicon (arm64)
+#   Windows  NSIS .exe installer, x64
+#   Linux    AppImage and .deb, x64
+# The steps are the repository's own Node scripts (scripts/), which also run on a developer's machine
+# (`npm run dist`), so CI and a local build cannot drift apart. Everything bundled is pinned with a checksum in
+# scripts/versions.json.
+#
+# Runs on: pull requests from release/* into master, and by hand (workflow_dispatch). GitHub only accepts a manual
+# run once the workflow file is on master, so a pull request into develop can ask for a build by carrying the
+# `ci-build` label (used while this file itself is being developed, and any time a change needs a full build).
+# release.yml calls this workflow for a tagged release (`release: true`) and then attaches the installers to a DRAFT.
+name: Build installers
+
+on:
+  pull_request:
+    branches: [master, develop]
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      release:
+        description: Build because release.yml asked for it (a version tag, or a rehearsal)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    if: >-
+      inputs.release ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.base_ref == 'master' && startsWith(github.head_ref, 'release/')) ||
+      (github.base_ref == 'develop' && contains(github.event.pull_request.labels.*.name, 'ci-build'))
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false # one system failing must not hide how the others do
+      matrix:
+        include:
+          # arm64 macOS runner, built on macOS 14 so the toolchain is not newer than the oldest macOS supported (14).
+          - name: macos-arm64
+            runner: macos-14
+            resources: desktop/release/mac-arm64/Slothshot.app/Contents/Resources
+          # Windows Server 2022.
+          - name: windows-x64
+            runner: windows-2022
+            resources: desktop/release/win-unpacked/resources
+          # Ubuntu 22.04 has glibc 2.35, the oldest C library among current Linux Mint releases (Mint 21 is built on
+          # Ubuntu 22.04, Mint 22 on 24.04). Programs built here run on both; building on 24.04 would not run on 21.
+          - name: linux-x64
+            runner: ubuntu-22.04
+            resources: desktop/release/linux-unpacked/resources
+    defaults:
+      run:
+        shell: bash
+    env:
+      ELECTRON_CACHE: ${{ github.workspace }}/.dev/electron-cache
+      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.dev/electron-builder-cache
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.21.0 # exact, so npm and the lockfiles behave the same on every run
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            desktop/package-lock.json
+
+      - name: Set up Python (uv)
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: api/uv.lock
+
+      # Ollama is checked against a pinned checksum, so a cache can only make it faster.
+      - name: Cache downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .dev/downloads
+          key: downloads-${{ matrix.name }}-${{ hashFiles('scripts/versions.json') }}
+
+      - name: Cache Electron
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .dev/electron-cache
+            .dev/electron-builder-cache
+          key: electron-${{ matrix.name }}-${{ hashFiles('desktop/package-lock.json') }}
+
+      - name: Ollama (official release, CPU and Vulkan on Windows and Linux)
+        run: node scripts/fetch-ollama.mjs
+
+      - name: Web app
+        run: node scripts/build-web.mjs
+
+      - name: Api (PyInstaller)
+        run: node scripts/build-api.mjs
+
+      # The built programs before they are packed: a failure here is cheaper to read than one inside an installer.
+      - name: Smoke test the built programs
+        run: node scripts/smoke.mjs
+
+      - name: Installer
+        run: node scripts/package.mjs
+
+      # The same checks on the copies that were packed into the app, which is what a user runs.
+      - name: Smoke test the packaged programs
+        run: node scripts/smoke.mjs --resources "${{ matrix.resources }}"
+
+      - name: Installer sizes
+        run: node scripts/installer-sizes.mjs
+
+      - name: Upload installers
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: installers-${{ matrix.name }}
+          path: |
+            desktop/release/*.dmg
+            desktop/release/*.exe
+            desktop/release/*.AppImage
+            desktop/release/*.deb
+            desktop/release/*.sha256
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0 # installers are already compressed

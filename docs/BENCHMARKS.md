@@ -274,3 +274,82 @@ Direct inspection with a model loaded:
 `spike/benchmark.py` always matched both; the mistake was in the newer script. Any future
 measurement that matches on process name has to match both, or it reports a number that looks
 like a triumph and is a bug.
+
+---
+
+## Installers — 25 October 2026
+
+Built with `npm run dist`, which runs the same scripts in the same order as
+`.github/workflows/build.yml`. A test (`scripts/dist.test.mjs`) fails if the two ever drift.
+
+All three platforms built on their own runners (run 40214157711, all green).
+
+| Installer | Size | Limit |
+| --- | --- | --- |
+| `Slothshot-0.1.0-arm64.dmg` (macOS, Apple Silicon) | **302.7 MB** | 1.50 GB ✓ |
+| `Slothshot-0.1.0-x64-setup.exe` (Windows, NSIS) | **about 165 MB** | 1.50 GB ✓ |
+| `Slothshot-0.1.0-x86_64.AppImage` (Linux) | **204.1 MB** | 1.50 GB ✓ |
+| `slothshot_0.1.0_amd64.deb` (Linux) | **165.1 MB** | 1.50 GB ✓ |
+
+The largest is a fifth of the limit. The Windows figure is the uploaded artifact, which is the
+installer plus its `.sha256`.
+
+**macOS is the biggest, which is not what the raw archives suggest.** Nothing is excluded
+there, and the Metal libraries are large; Windows and Linux lose their CUDA backends:
+
+| Bundled Ollama, after the exclusions | Size |
+| --- | --- |
+| macOS (Metal, nothing excluded) | 479 MiB |
+| Windows (CPU + Vulkan, CUDA and ROCm removed) | **113.5 MB**, from 1.85 GiB |
+| Linux (CPU + Vulkan, CUDA and ROCm removed) | **106.2 MB**, from 1.3 GB compressed |
+
+What is inside the macOS app:
+
+| Component | Size |
+| --- | --- |
+| Ollama (binary, `llama-server`, Metal libraries, licenses) | 479 MiB in the installed app |
+| api (one PyInstaller binary) | 26 MiB |
+| Electron licenses and Chromium notices | 20 MiB |
+| Generated web app | 320 KiB |
+
+The api binary is 26 MB against PostCall's 29 MB, because Slothshot carries no PDF or audio
+stack. **No model weights are bundled**: the first-launch wizard downloads the model the user
+chooses, which is the only time the app uses the network.
+
+### Keeping Windows and Linux under the limit
+
+The Linux archive is 1.3 GB compressed and the Windows one 1.85 GiB unpacked, of which the
+CUDA backends are about 1.3 GiB on their own. `scripts/fetch-ollama.mjs` leaves out
+`lib/ollama/cuda_*` and `rocm*` and keeps the **Vulkan** backend, which Ollama enables by
+default when present and which runs on AMD, Intel and NVIDIA drivers. The script then checks
+its own work: it fails if a CUDA or ROCm folder survived, and fails if Vulkan is missing.
+macOS excludes nothing, because Metal is the only backend it ships.
+
+### Smoke test
+
+Run twice per platform — once on what is about to be packaged, once on the copies inside the
+app a user installs:
+
+```
+  ok    ollama is bundled
+  ok    api is bundled
+  ok    the web app is bundled
+  ok    ollama --version: ollama version is 0.35.1
+  ok    the bundled Ollama serves on loopback
+  ok    the packaged api answers /health
+  ok    the api reached the bundled Ollama
+  ok    the model catalog is readable (2 recommended)
+```
+
+It runs in a temporary folder whose name carries an accent, as a Windows user name may.
+
+**It does not download a model or run inference**, by choice: the smallest vision model is
+1.9 GB, and pulling it onto three runners would be slow and would amount to running the
+product's own workload on someone else's machine, which is the thing Slothshot exists to
+avoid. Inference is proven locally, in the runs recorded above.
+
+### A bug the smoke test found on its first run
+
+It looked for the web app at `desktop/build/web`. Before packaging, the generated SPA is still
+at `web/.output/public`; only electron-builder copies it to `resources/web`. The check now
+resolves the right place for each mode. Left alone, it would have passed on no platform at all.

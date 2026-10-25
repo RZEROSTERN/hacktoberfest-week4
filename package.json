@@ -3,9 +3,12 @@
   "private": true,
   "description": "Builds the Slothshot installer for this system. The app itself lives in api/, web/ and desktop/.",
   "license": "SEE LICENSE IN LICENSE",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dist": "node scripts/dist.mjs",
-    "dist:plan": "node scripts/dist.mjs --dry-run"
+    "dist:plan": "node scripts/dist.mjs --dry-run",
+    "test:scripts": "node --test \"scripts/*.test.mjs\""
   }
 }

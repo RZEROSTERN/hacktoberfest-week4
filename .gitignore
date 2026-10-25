@@ -14,3 +14,6 @@ samples/*
 # Keep the directory so the script has somewhere to write.
 spike/results/*
 !spike/results/.gitkeep
+
+# Build inputs and outputs (downloads are checksum-pinned in scripts/versions.json).
+.dev/
