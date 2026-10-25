@@ -10,9 +10,11 @@ from app.config import Settings
 from app.db import make_engine
 from app.errors import ApiError
 from app.indexing import Indexer
+from app.organize import Organizer
 from app.routes import router
 from app.routes_folders import router as folders_router
 from app.routes_runs import router as runs_router
+from app.routes_undo import router as undo_router
 from app.runs import RunManager
 from app.settings_store import VISION_MODEL, seed_setting, vision_model_getter
 from app.vision import OllamaVision, Vision
@@ -39,7 +41,7 @@ def create_app(settings: Settings | None = None, vision: Vision | None = None) -
         ),
         settings.max_image_px,
     )
-    runs = RunManager(engine, indexer, executor)
+    runs = RunManager(engine, indexer, Organizer(engine), executor)
     runs.recover()
 
     @asynccontextmanager
@@ -72,6 +74,7 @@ def create_app(settings: Settings | None = None, vision: Vision | None = None) -
     app.include_router(router)
     app.include_router(folders_router)
     app.include_router(runs_router)
+    app.include_router(undo_router)
 
     @app.get("/health")
     def health() -> dict[str, str]:

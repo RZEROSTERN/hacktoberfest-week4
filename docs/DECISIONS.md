@@ -287,3 +287,78 @@ Progress is reported as counters on the `Run` row, not as log lines naming files
 
 **Why:** the product promise is that screenshot contents never leave the machine, and a log
 file is a place they could leak to. Counting is enough to drive a progress bar.
+
+---
+
+## Step 5 — Organize and undo
+
+### The safety guarantee is enforced by shape, not by care
+
+`app/organize.py` contains exactly two filesystem operations: create a directory, and move a
+file. There is no delete, no overwrite and no truncate anywhere in it. Destinations come from
+`unique_path`, which counts up until it finds a free name.
+
+**Why:** "never delete a user's file" is the kind of promise that erodes through a reasonable
+looking special case. If the module has no way to express deleting, the promise cannot be
+broken by accident. The single `rmdir` in the codebase lives in undo, applies only to a folder
+Slothshot created, and only when it is already empty.
+
+### The journal is written before the move, and undo is all-or-nothing
+
+A `Change` row is committed before the file moves and marked applied afterwards. Undo checks
+every change against the filesystem first and moves nothing unless all of them can be reversed.
+
+**Why:** the error messages say "Nothing was changed", and a user rearranging thousands of
+files has to be able to rely on that. A half-applied undo is worse than a refused one, because
+the user no longer knows what state they are in. Tests assert that a blocked undo leaves both
+the files and the journal untouched, so it stays undoable once the obstruction is cleared.
+
+### A row is a file; the hash is its content
+
+`content_hash` was originally unique, which quietly assumed no two files hold identical bytes.
+They do, and the end-to-end run proved it: one of 28 files was left untracked and never reached
+Review.
+
+**Why the fix is not just dropping the constraint:** rescanning now matches by path first, then
+follows a row whose file has moved, and only then creates a new row. That distinguishes the
+three cases that were previously collapsed: the same file seen again, a file the user moved,
+and a second copy living alongside the first. The copy still costs no model call, because the
+perceptual hash settles it at distance 0.
+
+### Expiry is decided conservatively, in code
+
+The model returns `expiry_hint` in its own words. `app/expiry.py` turns that into a yes or no,
+and only an unambiguous, fully specified date that is already past counts.
+
+**Why:** a date without a year is not a date for this purpose. "delivery 2 dic" is exactly how
+a boarding pass from last month becomes next year's. The asymmetry also matters: a stale
+screenshot filed normally costs nothing, while one wrongly swept into Review costs the user a
+search. The cautious default is "not expired".
+
+### Filenames carry the user's date, not UTC
+
+**Why:** capture times are stored in UTC, which is right for storage and wrong for a filename.
+An evening screenshot in Mexico City was being filed under the following day. The prefix is now
+the local date; a test pins it.
+
+### CI caught a test that only passed where it was written
+
+The first version of the local-date test built a Mexico City evening and asserted the
+filename's date. It passed on the development Mac and failed on the runner, because
+`astimezone()` with no argument uses *the machine's* zone: the same instant is the 24th at
+UTC-6 and the 25th at UTC.
+
+**The fix is in the signature.** `stem_for` now takes an optional `tz`, defaulting to the
+machine's zone, which is the user's zone for a desktop app. The parameter exists so the
+behaviour can be pinned without depending on where the test runs. The suite is now verified
+under both `TZ=UTC` and `TZ=America/Mexico_City`, and a second test asserts the same instant
+deliberately files under different days in different zones.
+
+This is worth recording because the app is built on one machine and shipped to three
+platforms in unknown timezones: a test that silently depends on the developer's locale is a
+bug that ships.
+
+### The date prefix also solves a Windows problem for free
+
+A filename beginning with a digit can never collide with a Windows reserved device name (CON,
+PRN, AUX, NUL, COM1), which would otherwise be reachable from a slug like "con".

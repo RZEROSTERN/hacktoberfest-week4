@@ -73,7 +73,11 @@ class Screenshot(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
 
     # Identity and duplicate detection.
-    content_hash: str = Field(unique=True, index=True)  # SHA-256 of the file's bytes
+    #
+    # NOT unique: two files can hold identical bytes, and both are real files the app has to
+    # manage. The row identifies a file; the hash identifies its content. A second copy gets
+    # its own row and is sent to Review like any other duplicate.
+    content_hash: str = Field(index=True)  # SHA-256 of the file's bytes
     perceptual_hash: str | None = Field(default=None, index=True)  # 64-bit dHash, hex
 
     # Where the file is. `original_path` is where it was first seen and is what undo restores.

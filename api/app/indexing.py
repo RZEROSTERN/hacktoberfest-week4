@@ -90,21 +90,41 @@ class Indexer:
 
             for found in iter_images(folders):
                 run.found += 1
-                digest = content_hash(found.path)
-                existing = session.exec(
-                    select(Screenshot).where(Screenshot.content_hash == digest)
-                ).first()
+                current = str(found.path)
 
-                if existing is not None:
-                    # Already known. The path may have changed since: the user moved it, or a
-                    # previous run organised it. Keep the row pointing at where it is now.
-                    current = str(found.path)
-                    if existing.current_path != current:
-                        existing.current_path = current
-                    if existing.status is ShotStatus.MISSING:
-                        existing.status = ShotStatus.PENDING
-                    session.add(existing)
+                # Already tracked at this exact path: nothing new.
+                tracked = session.exec(
+                    select(Screenshot).where(Screenshot.current_path == current)
+                ).first()
+                if tracked is not None:
+                    if tracked.status is ShotStatus.MISSING:
+                        tracked.status = ShotStatus.PENDING
+                        session.add(tracked)
                     continue
+
+                digest = content_hash(found.path)
+                # A row with these bytes whose file is no longer where it was: the user, or an
+                # earlier run, moved it. Follow it rather than treating it as new.
+                moved = next(
+                    (
+                        row
+                        for row in session.exec(
+                            select(Screenshot).where(Screenshot.content_hash == digest)
+                        ).all()
+                        if not Path(row.current_path).exists()
+                    ),
+                    None,
+                )
+                if moved is not None:
+                    moved.current_path = current
+                    if moved.status is ShotStatus.MISSING:
+                        moved.status = ShotStatus.PENDING
+                    session.add(moved)
+                    continue
+
+                # Either genuinely new, or a second copy of bytes already indexed. Both get a
+                # row; the perceptual hash settles the second case during analysis, at distance
+                # zero, without the model.
 
                 session.add(
                     Screenshot(

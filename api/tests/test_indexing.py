@@ -146,20 +146,25 @@ class TestAnalyze:
         assert vision.calls == 2
         assert all(s.status is ShotStatus.ANALYZED for s in shots(engine))
 
-    def test_an_exact_copy_is_settled_without_the_model(
+    def test_an_exact_copy_gets_its_own_row_but_not_its_own_model_call(
         self, engine: Engine, run_id: int, tmp_path: Path
     ) -> None:
-        source = panelled(tmp_path / "a.png", seed=1)
-        (tmp_path / "a-copy.png").write_bytes(source.read_bytes())
+        """Both files are real and both must be managed; only one needs describing."""
+        source = panelled(tmp_path / "original.png", seed=1)
+        (tmp_path / "copy.png").write_bytes(source.read_bytes())
+        os.utime(source, (1_700_000_000, 1_700_000_000))
+        os.utime(tmp_path / "copy.png", (1_700_009_999, 1_700_009_999))
 
         vision = FakeVision(analysis(slug="the-one"))
         indexer = Indexer(engine, vision, 768)
         indexer.scan(run_id, [tmp_path])
         indexer.analyze_pending(run_id)
 
-        # Identical bytes collapse at the content hash, before any image is even opened.
-        assert vision.calls == 1
-        assert len(shots(engine)) == 1
+        assert vision.calls == 1  # the twin is settled at distance zero, without the model
+        rows = {Path(s.current_path).name: s for s in shots(engine)}
+        assert len(rows) == 2  # a file left without a row would never reach Review
+        assert rows["original.png"].duplicate_of_id is None
+        assert rows["copy.png"].duplicate_of_id == rows["original.png"].id
 
     def test_a_resized_copy_is_caught_by_the_perceptual_hash(
         self, engine: Engine, run_id: int, tmp_path: Path

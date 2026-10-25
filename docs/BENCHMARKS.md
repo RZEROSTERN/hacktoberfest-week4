@@ -168,3 +168,37 @@ extracted text, which is the privacy rule holding in a real run rather than only
 | Closest non-duplicate pair, real captures (two dashboard cards 5 s apart, same layout) | 8 |
 
 4 sits in the gap with margin on both sides.
+
+---
+
+## Organize and undo — 24 October 2026
+
+A full sort and a full undo over the 28 fixtures, on a temporary copy of the folder, with
+SHA-256 taken of every file before and after.
+
+| | |
+| --- | --- |
+| Files before | 28, flat in one folder |
+| Moved | **28** |
+| Filed into category folders | 25 |
+| Sent to Review | **3** — one exact duplicate, one resized duplicate, one expired boarding pass |
+| Files after organizing | 28 |
+| Files lost | **0** |
+| Files restored by undo | **28** |
+| Byte-for-byte identical to the start | **yes** |
+| Empty Slothshot folders left behind | none |
+| Journal rows | 40, all marked undone |
+| Analysis kept after undo | 28 rows, so a re-run costs no model calls |
+
+### Two defects this run caught
+
+**One file was left unmanaged.** The first run moved 27 of 28 files. `content_hash` was a
+unique column, so a second file with identical bytes never got its own row: it was untracked,
+and therefore never sent to Review. A row now identifies a *file* and the hash identifies its
+*content*, which is the distinction that was missing. The second copy still costs no model call
+— the perceptual hash settles it at distance 0.
+
+**Date prefixes were a day ahead.** Capture times are stored in UTC and the filename was built
+from the UTC date, so an evening screenshot west of Greenwich was filed under tomorrow. The
+prefix is now the user's own local date. A test pins it with a Mexico City evening whose UTC
+date has already rolled over.
