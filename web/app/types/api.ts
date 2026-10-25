@@ -71,3 +71,20 @@ export interface SearchResults {
   count: number
   hits: SearchHit[]
 }
+
+export interface Schedule {
+  enabled: boolean
+  windowStart: string
+  windowEnd: string
+  requireIdle: boolean
+  idleThresholdSeconds: number
+  pauseOnBattery: boolean
+}
+
+export interface AppSettings {
+  vision_model: string | null
+  index_sensitive_text: boolean
+  max_image_px: number
+  schedule: Schedule
+  paused: boolean
+}

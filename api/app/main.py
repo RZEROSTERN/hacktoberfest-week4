@@ -1,3 +1,4 @@
+import threading
 from collections.abc import AsyncIterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
@@ -15,6 +16,7 @@ from app.routes import router
 from app.routes_folders import router as folders_router
 from app.routes_runs import router as runs_router
 from app.routes_search import router as search_router
+from app.routes_settings import router as settings_router
 from app.routes_undo import router as undo_router
 from app.runs import RunManager
 from app.settings_store import VISION_MODEL, seed_setting, vision_model_getter
@@ -34,15 +36,14 @@ def create_app(settings: Settings | None = None, vision: Vision | None = None) -
     # so scanning, analysis and organizing never overlap.
     executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="job")
 
-    indexer = Indexer(
-        engine,
-        vision
-        or OllamaVision(
-            settings.ollama_url, vision_model_getter(engine), prompts_dir=settings.prompts_dir
-        ),
-        settings.max_image_px,
+    engine_vision: Vision = vision or OllamaVision(
+        settings.ollama_url, vision_model_getter(engine), prompts_dir=settings.prompts_dir
     )
-    runs = RunManager(engine, indexer, Organizer(engine), executor)
+    # Shared between the indexer, which reads it between images, and the manager, which sets
+    # it when the desktop says the machine is back in use, on battery, or past the window.
+    pause = threading.Event()
+    indexer = Indexer(engine, engine_vision, settings.max_image_px, should_pause=pause.is_set)
+    runs = RunManager(engine, indexer, Organizer(engine), executor, engine_vision, pause)
     runs.recover()
 
     @asynccontextmanager
@@ -77,6 +78,7 @@ def create_app(settings: Settings | None = None, vision: Vision | None = None) -
     app.include_router(runs_router)
     app.include_router(undo_router)
     app.include_router(search_router)
+    app.include_router(settings_router)
 
     @app.get("/health")
     def health() -> dict[str, str]:

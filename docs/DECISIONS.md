@@ -410,3 +410,74 @@ a run sorted nothing.
 **Why:** an app that works overnight becomes intolerable the moment it reports having had
 nothing to do. A run that did nothing is still marked as seen, so a later poll does not
 reconsider it. The notification text carries counts only, never a file name or a description.
+
+---
+
+## Step 7 — Scheduler and resource guard
+
+### Conditions are polled, not subscribed to
+
+The guard reads idleness and power state on a one-minute timer rather than listening for
+Electron's `on-battery` and `on-ac` events.
+
+**Why:** Electron documents those two events as **macOS and Windows only**. A Linux build that
+waited for them would never notice the power state change, and the battery guard — one of the
+two things that make this app a good neighbour — would silently do nothing on one of the three
+platforms. `powerMonitor.onBatteryPower` and `getSystemIdleTime()` carry no platform
+restriction, so reading them on a timer behaves the same everywhere.
+
+### All the deciding is one pure function
+
+`shouldRun(schedule, conditions)` takes a snapshot and returns a verdict. The loop in
+`guard.ts` only reads the machine and calls the api.
+
+**Why:** the rules are "overnight, while idle, while plugged in", and every one of those is
+awkward to arrange on a real machine during a test. Separating the decision from the reading
+means the overnight window that spans midnight, the idle threshold and the battery guard are
+all tested directly, including the 23:00-to-07:00 wrap that is the most likely thing to get
+wrong.
+
+### Start-at-login is three different features
+
+macOS and Windows go through `setLoginItemSettings`; Linux gets an XDG autostart `.desktop`
+file written directly.
+
+**Why:** Electron documents `setLoginItemSettings` for macOS and Windows only. The same docs
+note that macOS login items want a signed and notarized app, and Slothshot is ad-hoc signed,
+so the request can quietly not take effect there. `applyAutostart` therefore **reads the value
+back** and returns what actually happened rather than what was asked for.
+
+### A manual run outranks the schedule
+
+"Sort now" clears a standing pause and starts a run whatever the guard would have decided.
+
+**Why:** asking for something explicitly is a clear instruction, and an app that refused
+because it was 3pm and the battery was at 80% would be obeying a rule rather than its user.
+The guard still pauses that run if conditions turn against it, which is the behaviour the
+resource budget actually cares about.
+
+### A run pauses between images, never inside one
+
+The pause flag is checked between screenshots, so the image in flight finishes and its result
+is stored.
+
+**Why:** stopping mid-file would leave a screenshot analysed but unrecorded, and the run would
+redo it on resume. Pausing at a boundary means resuming is just "carry on with the queue", and
+a test asserts the images analysed before the pause are not sent to the model a second time.
+
+### The model is released the moment a run ends
+
+`RunManager` unloads it in a `finally`, rather than waiting out the keep-alive.
+
+**Why:** the model is roughly 2 GB resident. Holding that for another thirty seconds after the
+work is done is the difference between a good neighbour and a bad one. The unload is
+best-effort and its failure is ignored: the keep-alive will do it shortly anyway, and a run
+that finished successfully must not be reported as failed over a cleanup call.
+
+### Measuring Ollama means measuring `llama-server`
+
+**Why this is written down:** the first memory measurement reported 0.03 GB for Ollama, which
+is impossible for a 1.9 GB model. Ollama's own process holds almost nothing; the model lives
+in a child process named `llama-server`, and `"llama-server"` does not contain the substring
+`"ollama"`. Any future measurement that matches on the process name has to match both, or it
+will report a number that looks like a triumph and is a bug.
