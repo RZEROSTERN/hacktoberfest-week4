@@ -362,3 +362,51 @@ bug that ships.
 
 A filename beginning with a digit can never collide with a Windows reserved device name (CON,
 PRN, AUX, NUL, COM1), which would otherwise be reachable from a slug like "con".
+
+---
+
+## Step 6 — Morning card and search
+
+### What is searchable is decided by what was stored
+
+There is no "exclude sensitive" filter at query time. A sensitive screenshot has no
+`extracted_text` row unless the user turned indexing on, so its contents cannot be matched
+even by accident.
+
+**Why not a filter:** a filter is a line of code someone can forget, reorder or route around
+with a new query path. Absence is not. The end-to-end check searches for the exact code shown
+in a sensitive fixture and gets nothing back, because there is nothing to match.
+
+Descriptions remain searchable, deliberately. "A message with a one-time code" is how someone
+finds the screenshot again, and is not the secret.
+
+### LIKE, not FTS5
+
+Matching is a case-insensitive `LIKE` per term, all terms required.
+
+**Why:** SQLite's FTS5 ranks better but needs a second table kept in step with this one, and a
+few thousand screenshots do not need it. The cost of being wrong is a slightly worse ordering,
+not a wrong answer. `app/search.py` names the threshold where this should be revisited.
+
+### The card reports Review from the index, not from the run
+
+Counts come from what is sitting in Review now, not from what the most recent run put there.
+
+**Why:** the card answers "what is waiting for me", and items from three nights ago are still
+waiting. A per-run count would quietly drop them.
+
+### The reclaimable figure is information, not an offer
+
+The card says what deleting the Review items *by hand* would free.
+
+**Why:** Slothshot never deletes anything, so a button there would be a promise the product
+does not make. A test asserts the wording does not drift into offering it.
+
+### One notification per run, and none for a quiet run
+
+`RunAnnouncer` remembers the last run it announced, and `notificationFor` returns nothing when
+a run sorted nothing.
+
+**Why:** an app that works overnight becomes intolerable the moment it reports having had
+nothing to do. A run that did nothing is still marked as seen, so a later poll does not
+reconsider it. The notification text carries counts only, never a file name or a description.

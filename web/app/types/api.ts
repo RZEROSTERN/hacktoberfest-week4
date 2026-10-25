@@ -43,3 +43,31 @@ export interface RunSummary {
   expired: number
   reviewable_bytes: number
 }
+
+export interface Summary {
+  run_id: number | null
+  finished_at: string | null
+  sorted_count: number
+  skipped_count: number
+  duplicates_waiting: number
+  expired_waiting: number
+  reclaimable_bytes: number
+  total_indexed: number
+}
+
+export interface SearchHit {
+  id: number
+  path: string
+  slug: string | null
+  category: Category | null
+  description: string | null
+  sensitive: boolean
+  in_review: boolean
+  snippet: string | null
+}
+
+export interface SearchResults {
+  query: string
+  count: number
+  hits: SearchHit[]
+}

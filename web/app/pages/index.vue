@@ -1,10 +1,7 @@
 <script setup lang="ts">
-import type { AppStatus } from '~/types/api'
+import { headline, reclaimLine, reviewLine, skippedLine } from '~/utils/summary'
 
-const { apiFetch } = useApi()
-const { data: status, error } = await useAsyncData('status', () =>
-  apiFetch<AppStatus>('/api/status')
-)
+const { data: summary, error } = await useSummary()
 </script>
 
 <template>
@@ -12,10 +9,30 @@ const { data: status, error } = await useAsyncData('status', () =>
     <h1>Slothshot</h1>
     <p class="muted">Sorts your screenshots while you are not using your computer.</p>
 
-    <p v-if="error">The app's local service is not running yet.</p>
-    <p v-else-if="status?.vision_model">
-      Using <strong>{{ status.vision_model }}</strong>.
-    </p>
-    <p v-else>No model chosen yet.</p>
+    <p v-if="error" class="muted">The app's local service is not running yet.</p>
+
+    <article v-else-if="summary" class="card">
+      <h2>{{ headline(summary) }}</h2>
+      <p v-if="reviewLine(summary)">{{ reviewLine(summary) }}</p>
+      <p v-if="reclaimLine(summary)" class="muted">{{ reclaimLine(summary) }}</p>
+      <p v-if="skippedLine(summary)" class="muted">{{ skippedLine(summary) }}</p>
+      <p class="muted small">
+        {{ summary.total_indexed }} screenshots indexed. Nothing is ever deleted, and every
+        change can be undone.
+      </p>
+      <NuxtLink to="/search">Search your screenshots →</NuxtLink>
+    </article>
   </section>
 </template>
+
+<style scoped>
+.card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin-top: 1.5rem;
+}
+.card h2 { margin: 0 0 .5rem; font-size: 1.25rem; }
+.card p { margin: .25rem 0; }
+.small { font-size: .875rem; margin-top: 1rem; }
+</style>
