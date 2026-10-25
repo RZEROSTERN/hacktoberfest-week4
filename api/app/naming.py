@@ -5,7 +5,7 @@ begin with a Windows reserved device name (CON, PRN, AUX, NUL, COM1...), because
 begins with a digit.
 """
 
-from datetime import datetime
+from datetime import datetime, tzinfo
 from pathlib import Path
 
 from app.models import Category
@@ -16,16 +16,20 @@ MAX_STEM = 96
 REVIEW_DIR_NAME = "Review"
 
 
-def stem_for(captured_at: datetime | None, slug: str) -> str:
+def stem_for(captured_at: datetime | None, slug: str, tz: tzinfo | None = None) -> str:
     """`2026-09-07-northgate-market-receipt`, or just the slug when the date is unknown.
 
-    The date is the one the user would say it was: capture times are stored in UTC, so an
+    The date is the one the user would say it was. Capture times are stored in UTC, so an
     evening screenshot west of Greenwich would otherwise be filed under tomorrow.
+
+    `tz` defaults to this machine's zone, which is the user's zone for a desktop app. It is a
+    parameter only so the behaviour can be pinned in a test without depending on where the
+    test happens to run.
     """
     cleaned = slug.strip("-") or "screenshot"
     if captured_at is None:
         return cleaned[:MAX_STEM].rstrip("-")
-    local = captured_at.astimezone() if captured_at.tzinfo else captured_at
+    local = captured_at.astimezone(tz) if captured_at.tzinfo else captured_at
     return f"{local.date().isoformat()}-{cleaned}"[:MAX_STEM].rstrip("-")
 
 

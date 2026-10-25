@@ -341,6 +341,23 @@ search. The cautious default is "not expired".
 An evening screenshot in Mexico City was being filed under the following day. The prefix is now
 the local date; a test pins it.
 
+### CI caught a test that only passed where it was written
+
+The first version of the local-date test built a Mexico City evening and asserted the
+filename's date. It passed on the development Mac and failed on the runner, because
+`astimezone()` with no argument uses *the machine's* zone: the same instant is the 24th at
+UTC-6 and the 25th at UTC.
+
+**The fix is in the signature.** `stem_for` now takes an optional `tz`, defaulting to the
+machine's zone, which is the user's zone for a desktop app. The parameter exists so the
+behaviour can be pinned without depending on where the test runs. The suite is now verified
+under both `TZ=UTC` and `TZ=America/Mexico_City`, and a second test asserts the same instant
+deliberately files under different days in different zones.
+
+This is worth recording because the app is built on one machine and shipped to three
+platforms in unknown timezones: a test that silently depends on the developer's locale is a
+bug that ships.
+
 ### The date prefix also solves a Windows problem for free
 
 A filename beginning with a digit can never collide with a Windows reserved device name (CON,

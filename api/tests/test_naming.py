@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 from app.models import Category
@@ -25,12 +25,18 @@ class TestStem:
 
     def test_the_date_is_the_users_own_day_not_utc(self) -> None:
         """Stored times are UTC; a late evening in Mexico City is still the same day there."""
-        from datetime import timedelta, timezone
-
         cdmx = timezone(timedelta(hours=-6))
-        evening = datetime(2026, 10, 24, 19, 30, tzinfo=cdmx)
-        assert evening.astimezone(UTC).date().isoformat() == "2026-10-25"  # UTC has rolled over
-        assert stem_for(evening, "a-shot").startswith("2026-10-24")
+        evening = datetime(2026, 10, 25, 1, 30, tzinfo=UTC)  # 19:30 on the 24th in CDMX
+        assert evening.date().isoformat() == "2026-10-25"  # UTC has already rolled over
+        assert stem_for(evening, "a-shot", tz=cdmx).startswith("2026-10-24")
+
+    def test_the_same_instant_files_differently_in_different_zones(self) -> None:
+        """Which is the point: the filename follows the user, not the clock in Greenwich."""
+        instant = datetime(2026, 10, 25, 1, 30, tzinfo=UTC)
+        assert stem_for(instant, "a-shot", tz=UTC).startswith("2026-10-25")
+        assert stem_for(instant, "a-shot", tz=timezone(timedelta(hours=-6))).startswith(
+            "2026-10-24"
+        )
 
     def test_a_dated_name_can_never_be_a_windows_device_name(self) -> None:
         # CON, PRN, AUX and friends are refused by Windows. A leading date makes them
